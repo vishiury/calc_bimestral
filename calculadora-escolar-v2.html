@@ -1,0 +1,2679 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <title>Calculadora de Notas · Boletim</title>
+
+  <script>
+    // Aplica o tema salvo (ou o preferido do sistema) antes de pintar a tela,
+    // evitando o "flash" branco ao abrir no modo escuro.
+    (function () {
+      try {
+        var salvo = localStorage.getItem('boletim_theme');
+        var tema = salvo || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', tema);
+      } catch (e) { /* localStorage indisponível */ }
+    })();
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <style>
+    /* ============================================================
+       CALCULADORA DE NOTAS — TEMA "SERENO"
+       Sucessor do Terracota: mesma paleta acolhedora em laranja
+       queimado, agora com cantos suaves, vidro (glassmorphism)
+       acentuado, tipografia Sora + Figtree e micro-interações
+       discretas. Hierarquia calma, nada neon, nada exagerado.
+       ============================================================ */
+
+    :root {
+      color-scheme: light;
+
+      /* ---------- Cores ---------- */
+      --bg:             #f4f2ee;
+      --card:           #ffffff;          /* cor sólida (fallback sem backdrop-filter) */
+      --card-2:         #faf9f7;
+      --card-3:         #f2f0ec;
+      --input:          rgba(255, 255, 255, .55);
+
+      --ink:            #1c1917;
+      --ink-soft:       #3f3a35;
+      --ink-mute:       #6f6a63;
+      --ink-faint:      #9c968e;
+
+      --line:           rgba(28, 25, 23, .08);
+      --line-strong:    rgba(28, 25, 23, .14);
+      --line-soft:      rgba(28, 25, 23, .05);
+
+      --primary:        #c25210;
+      --primary-strong: #a1440b;
+      --primary-soft:   rgba(217, 119, 6, .12);
+      --link:           #a1440b;
+
+      --green:          #15803d;
+      --green-bg:       rgba(34, 197, 94, .12);
+      --green-line:     rgba(34, 197, 94, .32);
+
+      --red:            #dc2626;
+      --red-bg:         rgba(239, 68, 68, .12);
+      --red-line:       rgba(239, 68, 68, .32);
+
+      --kpi-ok-bg:      rgba(34, 197, 94, .13);
+      --kpi-warn-bg:    rgba(239, 68, 68, .13);
+
+      /* ---------- Vidro (glassmorphism) ---------- */
+      --glass:          rgba(255, 255, 255, .52);         /* topbar */
+      --glass-card:     rgba(255, 255, 255, .5);          /* painéis */
+      --glass-2:        rgba(255, 255, 255, .36);         /* sub-painéis */
+      --glass-hover:    rgba(255, 255, 255, .7);          /* sobre superfícies de vidro */
+      --glass-edge:     rgba(255, 255, 255, .72);         /* bordas de luz */
+      --orb-1:          rgba(194, 82, 16, .12);
+      --orb-2:          rgba(166, 60, 20, .07);
+      --orb-3:          rgba(194, 82, 16, .05);
+
+      --blur-card: 24px;
+      --blur-top: 32px;
+
+      /* ---------- Formas: cantos suaves ---------- */
+      --radius-lg: 12px;
+      --radius-md: 9px;
+      --radius-sm: 7px;
+
+      /* ---------- Sombras discretas ---------- */
+      --shadow-card: inset 0 1px 0 rgba(255, 255, 255, .55), 0 1px 2px rgba(28, 25, 23, .04), 0 12px 32px -18px rgba(28, 25, 23, .18);
+      --shadow-pop:  0 24px 70px -28px rgba(28, 25, 23, .4);
+
+      --font-body: 'Figtree', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      --font-display: 'Sora', 'Figtree', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    }
+
+    [data-theme="dark"] {
+      color-scheme: dark;
+
+      --bg:             #131110;
+      --card:           #1b1917;
+      --card-2:         #211e1b;
+      --card-3:         #292522;
+      --input:          rgba(255, 255, 255, .05);
+
+      --ink:            #f4f3f1;
+      --ink-soft:       #d5d1cc;
+      --ink-mute:       #a8a29a;
+      --ink-faint:      #837d75;
+
+      --line:           rgba(255, 255, 255, .08);
+      --line-strong:    rgba(255, 255, 255, .15);
+      --line-soft:      rgba(255, 255, 255, .04);
+
+      --primary:        #d0671d;
+      --primary-strong: #e2884a;
+      --primary-soft:   rgba(224, 140, 72, .16);
+      --link:           #f0a35c;
+
+      --green:          #4ade80;
+      --green-bg:       rgba(34, 197, 94, .14);
+      --green-line:     rgba(74, 222, 128, .3);
+
+      --red:            #f87171;
+      --red-bg:         rgba(239, 68, 68, .14);
+      --red-line:       rgba(248, 113, 113, .32);
+
+      --kpi-ok-bg:      rgba(34, 197, 94, .10);
+      --kpi-warn-bg:    rgba(239, 68, 68, .10);
+
+      --glass:          rgba(22, 19, 17, .5);
+      --glass-card:     rgba(31, 28, 26, .48);
+      --glass-2:        rgba(255, 255, 255, .035);
+      --glass-hover:    rgba(255, 255, 255, .08);
+      --glass-edge:     rgba(255, 255, 255, .11);
+      --orb-1:          rgba(208, 103, 29, .14);
+      --orb-2:          rgba(146, 64, 14, .09);
+      --orb-3:          rgba(208, 103, 29, .06);
+
+      --shadow-card: inset 0 1px 0 rgba(255, 255, 255, .05), 0 16px 42px -26px rgba(0, 0, 0, .85);
+      --shadow-pop:  0 30px 80px -30px rgba(0, 0, 0, .9);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    button, input, [role="button"] { touch-action: manipulation; }
+
+    html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+
+    body {
+      background:
+        radial-gradient(860px 500px at 88% -14%, var(--orb-1), transparent 62%),
+        radial-gradient(760px 540px at -14% 36%, var(--orb-2), transparent 60%),
+        radial-gradient(700px 480px at 108% 46%, var(--orb-3), transparent 64%),
+        var(--bg);
+      background-attachment: fixed;
+      color: var(--ink);
+      font-family: var(--font-body);
+      font-size: 15.5px;
+      line-height: 1.55;
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: clip;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      transition: background-color .35s ease, color .35s ease;
+    }
+
+    .wrap { width: 100%; max-width: 1100px; margin: 0 auto; padding: 0 20px; }
+    .hidden { display: none !important; }
+
+    ::selection { background: #fde6cf; color: #7c2d12; }
+
+    ::-webkit-scrollbar { width: 9px; height: 9px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 9px; border: 2px solid transparent; background-clip: content-box; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--ink-faint); background-clip: content-box; }
+
+    /* ---------- Utilitários ---------- */
+
+    .label {
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      font-family: var(--font-body);
+    }
+
+    .label-icon { display: inline-flex; align-items: center; gap: 7px; }
+    .label-icon svg { width: 13px; height: 13px; color: var(--link); }
+
+    .mono { font-variant-numeric: tabular-nums; }
+
+    .hint { font-size: 12.5px; color: var(--ink-faint); font-weight: 500; }
+    .hint b, .hint strong { font-weight: 700; color: var(--ink-mute); }
+
+    /* ---------- Cabeçalho (topbar) ---------- */
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 60;
+      background: var(--glass);
+      backdrop-filter: blur(var(--blur-top)) saturate(180%);
+      -webkit-backdrop-filter: blur(var(--blur-top)) saturate(180%);
+      border-bottom: 1px solid var(--glass-edge);
+      transition: box-shadow .3s ease, border-color .3s ease;
+    }
+    .topbar.rolou { box-shadow: 0 8px 28px -20px rgba(28, 25, 23, .28); }
+
+    .topbar-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding-top: 13px;
+      padding-bottom: 13px;
+      flex-wrap: wrap;
+    }
+
+    .brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+
+    .logo-mark {
+      width: 46px; height: 46px; flex-shrink: 0;
+      border-radius: 11px;
+      display: flex; align-items: center; justify-content: center;
+      background: #c25210;
+      color: #fff;
+      position: relative;
+      box-shadow: 0 4px 12px -6px rgba(194, 82, 16, .45);
+      transition: transform .2s cubic-bezier(.2, .8, .2, 1), box-shadow .2s ease;
+    }
+    .topbar .brand:hover .logo-mark { transform: scale(1.04); }
+    .logo-mark svg { width: 23px; height: 23px; position: relative; z-index: 1; }
+
+    .brand-text { min-width: 0; }
+
+    .overline {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: var(--link);
+      margin-bottom: 2px;
+    }
+
+    .brand-name { display: flex; align-items: center; gap: 4px; }
+    .brand-name h1 {
+      font-family: var(--font-display);
+      font-size: clamp(19px, 3vw, 25px);
+      font-weight: 700;
+      letter-spacing: -.02em;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+    .brand-name .btn-icon { opacity: .45; }
+    .brand-name .btn-icon:hover { opacity: 1; }
+
+    .topbar-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .topbar-actions .btn { white-space: nowrap; }
+
+    /* ---------- Faixa de indicadores (KPIs) ---------- */
+
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 13px;
+      margin-top: 22px;
+    }
+
+    .kpi {
+      background: var(--glass-card);
+      background-image: linear-gradient(150deg, rgba(255, 255, 255, .08), rgba(255, 255, 255, 0) 42%);
+      border: 1px solid var(--glass-edge);
+      backdrop-filter: blur(var(--blur-card)) saturate(160%);
+      -webkit-backdrop-filter: blur(var(--blur-card)) saturate(160%);
+      border-radius: var(--radius-lg);
+      padding: 14px 16px 15px;
+      box-shadow: var(--shadow-card);
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+      min-width: 0;
+      transition: transform .25s cubic-bezier(.2, .8, .2, 1), box-shadow .25s ease, border-color .25s ease;
+    }
+    .kpi:hover {
+      transform: translateY(-1px);
+      border-color: var(--glass-hover);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6), 0 2px 4px rgba(28, 25, 23, .03), 0 16px 40px -22px rgba(28, 25, 23, .26);
+    }
+
+    .kpi-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      width: 100%;
+      margin-bottom: 6px;
+    }
+
+    .kpi-icon {
+      width: 29px; height: 29px;
+      flex-shrink: 0;
+      border-radius: 7px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--card-3);
+      color: var(--ink-faint);
+      transition: transform .25s cubic-bezier(.2, .8, .2, 1);
+    }
+    .kpi-icon svg { width: 15px; height: 15px; }
+    .kpi:hover .kpi-icon { transform: scale(1.05); }
+    .kpi:first-child .kpi-icon { background: var(--primary-soft); color: var(--link); }
+    .kpi.ok .kpi-icon { background: var(--green-bg); color: var(--green); }
+    .kpi.warn .kpi-icon { background: var(--red-bg); color: var(--red); }
+
+    .kpi-label {
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+    }
+
+    .kpi-value {
+      font-family: var(--font-display);
+      font-size: 27px;
+      font-weight: 700;
+      letter-spacing: -.02em;
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+    }
+    .kpi-value.dim { color: var(--line-strong); }
+    #stat-media-geral { color: var(--primary-strong); }
+    #stat-media-geral.dim { color: var(--line-strong); }
+
+    .kpi-sub { font-size: 12px; color: var(--ink-faint); font-weight: 500; }
+    .kpi .mini-link { margin-top: 5px; }
+
+    .kpi.ok   { background: color-mix(in srgb, var(--kpi-ok-bg) 78%, var(--glass-card)); border-color: var(--green-line); }
+    .kpi.ok .kpi-value { color: var(--green); }
+    .kpi.warn { background: color-mix(in srgb, var(--kpi-warn-bg) 78%, var(--glass-card)); border-color: var(--red-line); }
+    .kpi.warn .kpi-value { color: var(--red); }
+
+    /* ---------- Botões ---------- */
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-family: inherit;
+      font-size: 13.5px;
+      font-weight: 600;
+      line-height: 1;
+      padding: 11px 16px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--glass-edge);
+      background: var(--glass-hover);
+      color: var(--ink-soft);
+      cursor: pointer;
+      box-shadow: 0 1px 2px rgba(28, 25, 23, .05);
+      transition: background .2s ease, border-color .2s ease, color .2s ease,
+                  box-shadow .2s ease, transform .16s cubic-bezier(.2, .8, .2, 1);
+      text-align: center;
+    }
+    .btn:hover {
+      background: var(--card);
+      border-color: var(--glass-edge);
+      color: var(--ink);
+      transform: translateY(-1px);
+      box-shadow: 0 8px 22px -14px rgba(28, 25, 23, .45);
+    }
+    .btn:active { transform: translateY(0) scale(.97); }
+
+    .btn-solid {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+      box-shadow: 0 4px 14px -8px rgba(194, 82, 16, .65);
+    }
+    .btn-solid:hover {
+      background: var(--primary-strong);
+      border-color: var(--primary-strong);
+      color: #fff;
+      box-shadow: 0 6px 18px -10px rgba(194, 82, 16, .75);
+    }
+
+    .btn-danger { background: var(--card); border-color: var(--red-line); color: var(--red); }
+    .btn-danger:hover { background: var(--red-bg); border-color: var(--red); color: var(--red); }
+
+    .btn-danger-solid {
+      background: var(--red);
+      border-color: var(--red);
+      color: #fff;
+      box-shadow: 0 6px 16px -10px rgba(220, 38, 38, .7);
+    }
+    .btn-danger-solid:hover { background: #b91c1c; border-color: #b91c1c; color: #fff; }
+
+    .btn-small { padding: 9px 13px; font-size: 12.5px; border-radius: var(--radius-sm); }
+
+    .btn-icon { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--ink-mute); cursor: pointer; transition: background .2s ease, color .2s ease, border-color .2s ease, transform .16s cubic-bezier(.2, .8, .2, 1); }
+    .btn-icon svg { transition: transform .3s cubic-bezier(.2, .8, .2, 1); }
+    .btn-icon:hover { background: var(--card-3); color: var(--ink); }
+    .btn-icon.danger:hover { background: var(--red-bg); color: var(--red); }
+    #btn-tema:hover svg { transform: rotate(-10deg); }
+    .btn-icon.bordered { background: var(--glass-hover); border-color: var(--glass-edge); color: var(--ink-mute); }
+    .btn-icon.bordered:hover { background: var(--card); border-color: var(--glass-edge); color: var(--ink); transform: scale(1.05); }
+    .btn-icon:active { transform: scale(.92); }
+
+    .btn svg, .btn-icon svg, .mini-link svg { width: 15px; height: 15px; }
+
+    button:focus-visible, input:focus-visible, [role="button"]:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+
+    .mini-link {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--link);
+      padding: 4px 9px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background .2s ease, color .2s ease, transform .16s cubic-bezier(.2, .8, .2, 1);
+    }
+    .mini-link:hover { background: var(--primary-soft); color: var(--primary-strong); }
+    .mini-link:active { transform: scale(.95); }
+    .mini-link svg { width: 13px; height: 13px; }
+
+    /* ---------- Cartões ---------- */
+
+    .sheet {
+      background: var(--glass-card);
+      background-image: linear-gradient(150deg, rgba(255, 255, 255, .09), rgba(255, 255, 255, 0) 42%);
+      border: 1px solid var(--glass-edge);
+      backdrop-filter: blur(var(--blur-card)) saturate(160%);
+      -webkit-backdrop-filter: blur(var(--blur-card)) saturate(160%);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card);
+      transition: background-color .35s ease, border-color .35s ease, box-shadow .35s ease;
+    }
+
+    .pad { padding: 22px; }
+
+    .sheet-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .sheet-head .label { font-size: 11px; color: var(--ink-mute); }
+
+    /* ---------- Layout principal ---------- */
+
+    main.grid {
+      display: grid;
+      grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+      gap: 16px;
+      align-items: start;
+      flex-grow: 1;
+      padding-top: 18px;
+      padding-bottom: 8px;
+    }
+
+    .col-left, .col-right { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+    /* ---------- Abas de disciplinas ---------- */
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+      padding: 5px;
+      background: var(--glass-2);
+      border: 1px solid var(--glass-edge);
+      border-radius: 10px;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-x: contain;
+      touch-action: auto;             /* no toque, a rolagem nativa cuida do "empurrar pro lado" com inércia */
+      cursor: grab;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .tabs.arrastando { cursor: grabbing; }
+
+    /* Desfoque suave nas bordas, mostrando que há mais abas do lado */
+    #materia-tabs {
+      -webkit-mask-image: linear-gradient(to right,
+        transparent var(--mask-esq, -22px),
+        #000 calc(var(--mask-esq, -22px) + 22px),
+        #000 calc(100% - var(--mask-dir, -22px) - 22px),
+        transparent calc(100% - var(--mask-dir, -22px)));
+      mask-image: linear-gradient(to right,
+        transparent var(--mask-esq, -22px),
+        #000 calc(var(--mask-esq, -22px) + 22px),
+        #000 calc(100% - var(--mask-dir, -22px) - 22px),
+        transparent calc(100% - var(--mask-dir, -22px)));
+    }
+    .tabs::-webkit-scrollbar { height: 0; }
+
+    .tab {
+      flex-shrink: 0;
+      background: transparent;
+      border: none;
+      border-radius: 7px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13.5px;
+      font-weight: 500;
+      color: var(--ink-mute);
+      padding: 9px 13px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+      transition: background .2s ease, color .2s ease, box-shadow .2s ease, transform .16s cubic-bezier(.2, .8, .2, 1);
+    }
+    .tab:hover { background: var(--glass-hover); color: var(--ink); box-shadow: 0 1px 2px rgba(28, 25, 23, .05); }
+    .tab:active { transform: scale(.96); }
+    .tab.active {
+      background: var(--primary);
+      color: #fff;
+      font-weight: 600;
+      box-shadow: 0 3px 10px -5px rgba(194, 82, 16, .5);
+    }
+
+    .tab .tab-media {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--ink-faint);
+      font-variant-numeric: tabular-nums;
+    }
+    .tab.active .tab-media { color: rgba(255, 255, 255, .85); }
+
+    .tab-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--line-strong); flex-shrink: 0; }
+    .tab-dot.ok { background: #16a34a; box-shadow: 0 0 0 3px rgba(22, 163, 74, .15); }
+    .tab-dot.warn { background: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, .15); }
+
+    /* ---------- Disciplina ativa ---------- */
+
+    .subject-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .subject-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+    .subject-title-row h2 {
+      font-family: var(--font-display);
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -.02em;
+      overflow-wrap: anywhere;
+    }
+
+    .status-line { color: var(--ink-mute); font-size: 14px; margin-top: 4px; font-weight: 500; }
+
+    .row-actions { display: flex; gap: 2px; flex-shrink: 0; }
+
+    /* Badge de situação */
+    .stamp {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      padding: 5px 12px;
+      border-radius: 999px;
+      user-select: none;
+    }
+    .stamp::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+    .stamp.ok { color: var(--green); background: var(--green-bg); border: 1px solid var(--green-line); }
+    .stamp.warn { color: var(--red); background: var(--red-bg); border: 1px solid var(--red-line); }
+
+    .grades-label { display: block; margin: 2px 0 10px; }
+
+    .grades-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .grade-cell { display: flex; flex-direction: column; gap: 7px; }
+    .grade-cell > .label { text-align: center; }
+
+    .field {
+      width: 100%;
+      background: var(--input);
+      border: 1.5px solid var(--line-strong);
+      border-radius: var(--radius-md);
+      color: var(--ink);
+      font-family: inherit;
+      font-size: 15px;
+      padding: 11px 13px;
+      transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
+    }
+    .field::placeholder { color: var(--ink-faint); opacity: .7; }
+    .field:hover { border-color: var(--ink-faint); }
+    .field:focus {
+      outline: none;
+      background: var(--card);
+      border-color: var(--primary-strong);
+      box-shadow: 0 0 0 4px rgba(217, 119, 6, .16);
+    }
+    .field.invalid {
+      border-color: #ef4444;
+      box-shadow: 0 0 0 4px rgba(220, 38, 38, .15);
+    }
+
+    .grade-input {
+      text-align: center;
+      font-family: var(--font-display);
+      font-size: 19px;
+      font-weight: 700;
+      padding: 11px 6px;
+      letter-spacing: -.01em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Simulador — caixa de destaque suave */
+    .margin-note {
+      position: relative;
+      margin-top: 16px;
+      background: var(--glass-2);
+      border: 1px solid var(--glass-edge);
+      border-radius: var(--radius-md);
+      padding: 14px 16px 14px 19px;
+      overflow: hidden;
+      transition: background .2s ease;
+    }
+    .margin-note::before {
+      content: "";
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+      background: var(--primary);
+    }
+
+    .note-text {
+      font-size: 14px;
+      color: var(--ink-soft);
+      line-height: 1.6;
+      font-weight: 500;
+    }
+    .note-text strong { color: var(--ink); font-weight: 700; }
+    .note-text .ok { color: var(--green); font-weight: 700; }
+    .note-text .warn { color: var(--red); font-weight: 700; }
+
+    .subject-foot {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line-soft);
+    }
+
+    /* ---------- Gráfico de médias ---------- */
+
+    .chart {
+      position: relative;
+      height: 216px;
+      display: flex;
+      align-items: stretch;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 4px 0;
+      border-bottom: 1px solid var(--line);
+      background-image: linear-gradient(to top, var(--line-soft) 1px, transparent 1px);
+      background-size: 100% 25%;
+    }
+
+    .chart-empty {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--ink-faint);
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .bar-col {
+      flex: 1;
+      max-width: 78px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      cursor: pointer;
+      min-width: 0;
+      border-radius: 10px;
+      padding: 0 2px;
+      transition: background .16s ease;
+    }
+    .bar-col:hover { background: var(--card-2); }
+
+    .bar-val {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--ink-mute);
+      margin-bottom: 4px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .bar-track {
+      width: 100%;
+      flex: 1;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .bar {
+      width: 100%;
+      max-width: 34px;
+      border-radius: 6px 6px 2px 2px;
+      transition: height .45s cubic-bezier(.2, .8, .2, 1), filter .16s ease, box-shadow .16s ease;
+    }
+
+    .bar.ok {
+      background: #16a34a;
+    }
+    .bar.warn {
+      background: #dc2626;
+    }
+    .bar-col:hover .bar { filter: brightness(1.08); }
+
+    .bar-name {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--ink-faint);
+      margin-top: 8px;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .bar-col.sel .bar-name { color: var(--ink); font-weight: 700; }
+    .bar-col.sel .bar-val { color: var(--link); }
+
+    .meta-line {
+      position: absolute;
+      left: 0; right: 0;
+      border-top: 2px dashed rgba(220, 38, 38, .45);
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .meta-tag {
+      position: absolute;
+      right: 0;
+      top: -11px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: var(--red);
+      background: var(--card);
+      border: 1px solid var(--red-line);
+      padding: 2px 8px;
+      border-radius: 7px;
+    }
+
+    .legend {
+      display: flex;
+      justify-content: center;
+      gap: 22px;
+      margin-top: 14px;
+      font-size: 13px;
+      color: var(--ink-mute);
+      font-weight: 500;
+    }
+    .legend span { display: inline-flex; align-items: center; gap: 7px; }
+
+    .swatch { width: 12px; height: 12px; border-radius: 4px; display: inline-block; }
+    .swatch.ok { background: #16a34a; }
+    .swatch.warn { background: #dc2626; }
+
+    /* ---------- Seção Turma ---------- */
+
+    #secao-turma { margin-top: 16px; scroll-margin-top: 92px; }
+
+    .turma-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .turma-head h2 {
+      font-family: var(--font-display);
+      font-size: 21px;
+      font-weight: 700;
+      letter-spacing: -.02em;
+    }
+    .turma-head p { color: var(--ink-mute); font-size: 14px; margin-top: 3px; font-weight: 500; }
+
+    .well {
+      background: var(--glass-2);
+      border: 1px solid var(--glass-edge);
+      border-radius: var(--radius-md);
+      padding: 18px;
+    }
+
+    .well-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .well-head h3 {
+      font-size: 14.5px;
+      font-weight: 700;
+      color: var(--ink);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .well-head h3 svg { width: 16px; height: 16px; color: var(--primary); }
+
+    .field-name { max-width: 420px; }
+
+    .notas-scroll { overflow-x: auto; margin: 12px 0 14px; }
+
+    table.notas-table {
+      width: 100%;
+      min-width: 520px;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    table.notas-table th {
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      text-align: center;
+      padding: 8px;
+      border-bottom: 1px solid var(--line);
+    }
+    table.notas-table th:first-child { text-align: left; }
+    table.notas-table td { padding: 6px 8px; border-bottom: 1px solid var(--line-soft); }
+    table.notas-table tr:last-child td { border-bottom: none; }
+    table.notas-table td.disc { font-weight: 600; white-space: nowrap; color: var(--ink-soft); }
+    table.notas-table td.nota { text-align: center; width: 74px; }
+
+    .nota-input {
+      width: 62px;
+      text-align: center;
+      font-family: inherit;
+      font-size: 13.5px;
+      font-weight: 600;
+      padding: 7px 4px;
+      background: var(--input);
+      border: 1.5px solid var(--line-strong);
+      border-radius: var(--radius-sm);
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+      transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
+    }
+    .nota-input:hover { border-color: var(--ink-faint); }
+    .nota-input:focus { outline: none; background: var(--card); border-color: var(--primary-strong); box-shadow: 0 0 0 3px rgba(217, 119, 6, .16); }
+
+    .form-foot { display: flex; justify-content: flex-end; gap: 10px; }
+
+    /* Lista de alunos — vira cartões no celular */
+    .tlist { margin-top: 20px; }
+
+    .tlist-row {
+      display: grid;
+      grid-template-columns: 1.5fr 1.3fr .8fr .9fr 92px;
+      gap: 12px;
+      align-items: center;
+      padding: 13px 10px;
+      border-bottom: 1px solid var(--line-soft);
+      border-radius: 10px;
+      transition: background .14s ease;
+    }
+    .tlist-row:not(.head):hover { background: var(--glass-hover); }
+    .tlist-row.head { border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+
+    .tlist-empty {
+      padding: 30px 10px;
+      text-align: center;
+      color: var(--ink-faint);
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      padding: 5px 11px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    .chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .chip.ok { color: var(--green); background: var(--green-bg); }
+    .chip.warn { color: var(--red); background: var(--red-bg); }
+    .chip.mute { color: var(--ink-faint); background: var(--card-3); }
+    .chip.mute::before { display: none; }
+
+    .tc { min-width: 0; }
+    .tc .tc-main { font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+    .tc .tc-sub { font-size: 13px; color: var(--ink-faint); font-weight: 500; }
+    .tc-media {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 16px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+    .tc-media.ok { color: var(--green); }
+    .tc-media.warn { color: var(--red); }
+    .tc-sit { text-align: center; }
+    .tc-actions { display: flex; gap: 4px; justify-content: flex-end; }
+
+    /* ---------- Rodapé ---------- */
+
+    footer.foot {
+      margin-top: 30px;
+      padding: 22px 0 32px;
+      border-top: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      font-size: 13px;
+      color: var(--ink-faint);
+      font-weight: 500;
+    }
+
+    /* ---------- Modal ---------- */
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background: rgba(24, 20, 17, .42);
+      backdrop-filter: blur(12px) saturate(130%);
+      -webkit-backdrop-filter: blur(12px) saturate(130%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      animation: overlayIn .22s ease;
+    }
+
+    @keyframes overlayIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
+    .modal {
+      width: 100%;
+      max-width: 440px;
+      max-height: calc(100dvh - 36px);
+      overflow-y: auto;
+      background: color-mix(in srgb, var(--glass-card) 80%, var(--card));
+      border: 1px solid var(--glass-edge);
+      backdrop-filter: blur(26px) saturate(170%);
+      -webkit-backdrop-filter: blur(26px) saturate(170%);
+      border-radius: 14px;
+      box-shadow: var(--shadow-pop);
+      animation: modalIn .3s cubic-bezier(.22, 1, .36, 1);
+    }
+
+    @keyframes modalIn {
+      from { opacity: 0; transform: translateY(12px) scale(.985); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 18px 20px 0;
+    }
+    .modal-head h3 {
+      font-family: var(--font-display);
+      font-size: 19px;
+      font-weight: 700;
+      letter-spacing: -.01em;
+    }
+
+    .modal-body { padding: 14px 20px 4px; }
+    .modal-body .field { margin-top: 6px; }
+    .modal-body .label { display: block; }
+
+    .modal-hint { font-size: 12.5px; color: var(--ink-faint); margin-top: 10px; font-weight: 500; }
+
+    .confirm-msg {
+      font-size: 15px;
+      line-height: 1.6;
+      color: var(--ink-soft);
+      padding: 2px 0 6px;
+      font-weight: 500;
+    }
+    .confirm-msg strong { color: var(--ink); font-weight: 700; }
+
+    .chips { display: flex; gap: 8px; margin-top: 10px; }
+
+    .chip-btn {
+      font-family: inherit;
+      font-size: 12.5px;
+      font-weight: 600;
+      padding: 7px 13px;
+      background: var(--glass-2);
+      border: 1px solid var(--glass-edge);
+      border-radius: 8px;
+      color: var(--ink-soft);
+      cursor: pointer;
+      font-variant-numeric: tabular-nums;
+      transition: background .2s ease, color .2s ease, border-color .2s ease, transform .16s cubic-bezier(.2, .8, .2, 1);
+    }
+    .chip-btn:hover { background: var(--primary-soft); color: var(--link); border-color: var(--primary-soft); }
+    .chip-btn:active { transform: scale(.95); }
+
+    .modal-foot {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 16px 20px 20px;
+    }
+
+    /* ---------- Toast ---------- */
+
+    .toast {
+      position: fixed;
+      bottom: calc(22px + env(safe-area-inset-bottom));
+      left: 50%;
+      transform: translate(-50%, 14px);
+      z-index: 1500;
+      background: rgba(30, 26, 23, .72);
+      backdrop-filter: blur(16px) saturate(150%);
+      -webkit-backdrop-filter: blur(16px) saturate(150%);
+      color: #f8fafc;
+      font-size: 13.5px;
+      font-weight: 500;
+      padding: 12px 20px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, .1);
+      box-shadow: 0 20px 50px -14px rgba(0, 0, 0, .55);
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .25s cubic-bezier(.2, .8, .2, 1), transform .25s cubic-bezier(.2, .8, .2, 1);
+      max-width: calc(100vw - 40px);
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    .toast svg { width: 15px; height: 15px; color: #4ade80; flex-shrink: 0; }
+
+    /* ---------- Template oculto do PDF (fundo branco) ---------- */
+
+    #pdf-container {
+      position: fixed;
+      left: -9999px;
+      top: 0;
+      width: 794px;
+      background: #ffffff;
+      color: #0f172a;
+      font-family: 'Inter', system-ui, sans-serif;
+      padding: 36px 40px;
+    }
+
+    #pdf-container .pdf-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border-bottom: 3px solid #c25210;
+      padding-bottom: 14px;
+      margin-bottom: 24px;
+    }
+    #pdf-container h1 { font-size: 24px; font-weight: 800; letter-spacing: -.01em; }
+    #pdf-container .pdf-sub { font-size: 13px; color: #64748b; margin-top: 3px; font-weight: 500; }
+    #pdf-container .pdf-meta { text-align: right; font-size: 12px; color: #64748b; line-height: 1.7; font-weight: 500; }
+
+    .pdf-aluno {
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 16px 18px;
+      margin-bottom: 18px;
+      page-break-inside: avoid;
+    }
+    .pdf-aluno-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 9px;
+      margin-bottom: 10px;
+    }
+    .pdf-aluno-head h3 { font-size: 16.5px; font-weight: 700; }
+    .pdf-aluno-head span {
+      font-size: 10.5px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: #64748b;
+      font-weight: 700;
+    }
+
+    .pdf-aluno table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .pdf-aluno th {
+      font-size: 10px;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      color: #64748b;
+      text-align: center;
+      padding: 6px;
+      border-bottom: 1px solid #e2e8f0;
+      background: #f8fafc;
+      font-weight: 700;
+    }
+    .pdf-aluno th:first-child { text-align: left; }
+    .pdf-aluno td {
+      padding: 7px 6px;
+      border-bottom: 1px solid #f1f5f9;
+      text-align: center;
+      font-size: 12.5px;
+      font-variant-numeric: tabular-nums;
+      font-weight: 500;
+      color: #334155;
+    }
+    .pdf-aluno td.disc { text-align: left; font-weight: 600; color: #0f172a; }
+    .pdf-aluno td.sit { font-weight: 700; }
+    .pdf-geral { display: flex; justify-content: space-between; padding-top: 10px; font-size: 13.5px; font-weight: 700; }
+    .pdf-ok { color: #15803d; }
+    .pdf-warn { color: #dc2626; }
+
+    /* ---------- Entrada suave das seções ---------- */
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .kpis .kpi { animation: rise .5s cubic-bezier(.2, .8, .2, 1) backwards; }
+    .kpis .kpi:nth-child(2) { animation-delay: .05s; }
+    .kpis .kpi:nth-child(3) { animation-delay: .1s; }
+    .kpis .kpi:nth-child(4) { animation-delay: .15s; }
+
+    main.grid > section > .sheet,
+    #secao-turma > .sheet { animation: rise .55s cubic-bezier(.2, .8, .2, 1) backwards; animation-delay: .12s; }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after {
+        animation-duration: .001ms !important;
+        animation-delay: 0ms !important;
+        transition-duration: .001ms !important;
+      }
+    }
+
+    /* Navegadores sem blur no fundo: cai para cores sólidas */
+    @supports not ((backdrop-filter: blur(4px)) or (-webkit-backdrop-filter: blur(4px))) {
+      .topbar, .sheet, .kpi, .modal, .toast, .margin-note { background: var(--card); }
+      .tabs { background: var(--card-2); border-color: var(--line); }
+      .button-fallback, .btn, .mini-link { background: var(--card-2); border-color: var(--line); }
+      .btn-icon.bordered { background: var(--card-2); border-color: var(--line); }
+      .tab:hover { background: var(--card); }
+      .field, .nota-input { background: var(--card); }
+      .well, .margin-note { border-color: var(--line); }
+      .tlist-row:not(.head):hover { background: var(--card-2); }
+      .chip-btn { background: var(--card-3); border-color: var(--line); }
+      .topbar.rolou { box-shadow: 0 8px 30px -18px rgba(28, 25, 23, .4); }
+    }
+
+    /* Navegadores sem color-mix: cores planas direto nos fundos */
+    @supports not (background: color-mix(in srgb, red, blue)) {
+      .kpi.ok { background: var(--kpi-ok-bg); }
+      .kpi.warn { background: var(--kpi-warn-bg); }
+      .modal { background: var(--card); }
+    }
+
+    /* ---------- Responsivo ---------- */
+
+    @media (max-width: 920px) {
+      main.grid { grid-template-columns: 1fr; }
+      .col-right { order: 2; }
+    }
+
+    @media (max-width: 720px) {
+      body { background-attachment: scroll; }
+      /* Vidro mais leve no celular (desempenho) */
+      .topbar { backdrop-filter: blur(18px) saturate(160%); -webkit-backdrop-filter: blur(18px) saturate(160%); }
+      .sheet, .kpi { backdrop-filter: blur(14px) saturate(150%); -webkit-backdrop-filter: blur(14px) saturate(150%); }
+      .topbar { position: static; }
+      .topbar-inner { row-gap: 10px; }
+      .pad { padding: 17px; }
+      .wrap { padding-left: 14px; padding-right: 14px; }
+      #secao-turma { scroll-margin-top: 16px; }
+      .kpis { grid-template-columns: repeat(2, 1fr); gap: 11px; margin-top: 18px; }
+      .grades-grid { grid-template-columns: repeat(2, 1fr); }
+      .kpi-value { font-size: 24px; }
+
+      /* 16px evita o zoom automático dos campos no iOS */
+      .field, .nota-input { font-size: 16px; }
+      .grade-input { font-size: 19px; }
+      .btn { min-height: 42px; }
+      .btn-small { min-height: 36px; }
+      .chip-btn { min-height: 38px; }
+      .btn-icon { width: 38px; height: 38px; }
+      .row-actions .btn-icon, .tc-actions .btn-icon { width: 40px; height: 40px; }
+      .mini-link { min-height: 38px; padding: 8px 11px; }
+      .chart { gap: 6px; height: 204px; }
+      .legend { flex-wrap: wrap; gap: 14px; }
+
+      .tlist-row.head { display: none; }
+      .tlist-row {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        border: 1px solid var(--glass-edge);
+        border-radius: 10px;
+        background: var(--glass-2);
+        padding: 14px;
+        margin-bottom: 10px;
+      }
+      .tlist-row:not(.head):hover { background: var(--glass-hover); }
+      .tc-nome { grid-column: 1 / -1; border-bottom: 1px solid var(--line-soft); padding-bottom: 8px; }
+      .tc::before {
+        content: attr(data-label);
+        display: block;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .09em;
+        text-transform: uppercase;
+        color: var(--ink-faint);
+        margin-bottom: 3px;
+      }
+      .tc-actions { justify-content: flex-start; }
+      .tc-actions::before { margin-bottom: 0; }
+      .toast { width: max-content; }
+    }
+
+    /* Formulário de notas do aluno vira cartões (sem rolagem lateral) */
+    @media (max-width: 600px) {
+      .notas-scroll { overflow: visible; }
+      .well { padding: 12px; }
+      table.notas-table { display: block; min-width: 0; }
+      table.notas-table thead { display: none; }
+      table.notas-table tbody { display: grid; gap: 10px; }
+      table.notas-table tr {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        padding: 12px;
+        background: var(--glass-2);
+        border: 1px solid var(--glass-edge);
+        border-radius: 10px;
+      }
+      table.notas-table td { padding: 0; border: none; }
+      table.notas-table tr:last-child td { border-bottom: none; }
+      table.notas-table td.disc { grid-column: 1 / -1; padding-bottom: 2px; white-space: normal; }
+      table.notas-table td.nota { width: auto; }
+      table.notas-table td.nota::before {
+        content: attr(data-label);
+        display: block;
+        text-align: center;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: var(--ink-faint);
+        margin-bottom: 4px;
+      }
+      .nota-input { width: 100%; padding: 10px 2px; font-weight: 700; }
+    }
+
+    /* Em tablets estreitos as 4 notas cabem lado a lado */
+    @media (min-width: 521px) and (max-width: 720px) {
+      .grades-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+
+    @media (max-width: 480px) {
+      main.grid { padding-top: 14px; }
+      .wrap { padding-left: 12px; padding-right: 12px; }
+      .topbar-inner { padding-top: 14px; padding-bottom: 14px; }
+      .topbar-actions { width: 100%; }
+      .topbar-actions .btn { flex: 1; font-size: 12.5px; padding: 11px 10px; gap: 6px; }
+      .topbar-actions .btn svg { width: 14px; height: 14px; }
+      .topbar-actions .btn-icon { width: 42px; height: 42px; }
+      .brand { gap: 10px; }
+      .logo-mark { width: 42px; height: 42px; border-radius: 10px; }
+      .overline { font-size: 9px; letter-spacing: .12em; }
+      .kpis { gap: 10px; }
+      .turma-head .btn { width: 100%; }
+      .form-foot { flex-direction: column; }
+      .form-foot .btn { width: 100%; }
+      .subject-title-row h2 { font-size: 22px; }
+      .bar-name { font-size: 10px; }
+      .turma-head h2 { font-size: 19px; }
+      .modal-foot { flex-direction: column; }
+      .modal-foot .btn { width: 100%; }
+      .tc-actions { gap: 8px; }
+    }
+
+    @media (max-width: 380px) {
+      .wrap { padding-left: 10px; padding-right: 10px; }
+      .pad { padding: 14px; }
+      .well { padding: 10px; }
+      table.notas-table tr { padding: 10px 8px; gap: 6px; }
+      .nota-input { padding: 10px 1px; }
+      .kpis { gap: 9px; }
+      .kpi { padding: 12px 13px; }
+      .kpi-icon { width: 26px; height: 26px; border-radius: 8px; }
+      .kpi-icon svg { width: 13px; height: 13px; }
+      .kpi-label { font-size: 9.5px; letter-spacing: .06em; }
+      .kpi-value { font-size: 22px; }
+      .logo-mark { width: 38px; height: 38px; }
+      .grades-grid { gap: 9px; }
+      .grade-input { font-size: 18px; padding: 10px 4px; }
+      .legend { font-size: 11.5px; gap: 10px; }
+      .stamp { font-size: 10px; padding: 4px 9px; }
+      .brand-name h1 { font-size: 18px; }
+      .topbar-actions .btn { font-size: 12px; padding: 10px 8px; gap: 6px; }
+      .topbar-actions .btn svg { width: 14px; height: 14px; }
+      .kpi-sub { font-size: 11.5px; }
+    }
+
+    @media (max-width: 340px) {
+      .topbar-actions .btn { font-size: 11.5px; padding: 10px 6px; gap: 5px; }
+      .brand-name h1 { font-size: 17px; }
+      .kpi-label { font-size: 9px; letter-spacing: .04em; }
+    }
+
+    /* Em telas de toque, evita que o hover "cole" depois do toque */
+    @media (hover: none) {
+      .kpi:hover { transform: none; box-shadow: var(--shadow-card); border-color: var(--glass-edge); }
+      .kpi.ok:hover { border-color: var(--green-line); }
+      .kpi.warn:hover { border-color: var(--red-line); }
+      .btn:hover { transform: none; }
+      .btn:active { transform: none; }
+      .btn-icon.bordered:hover { transform: none; }
+      .tab:hover { background: transparent; color: var(--ink-mute); box-shadow: none; }
+      .tab.active:hover { background: var(--primary); color: #fff; }
+      .bar-col:active .bar { filter: brightness(1.1); }
+    }
+
+  </style>
+</head>
+<body>
+
+  <!-- Cabeçalho -->
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <div class="brand">
+        <div class="logo-mark"><i data-lucide="graduation-cap"></i></div>
+        <div class="brand-text">
+          <p class="overline">Controle de notas · Boletim bimestral</p>
+          <div class="brand-name">
+            <h1 id="escola-nome">Calculadora de Notas</h1>
+            <button class="btn-icon" onclick="editarEscola()" title="Editar nome da escola" aria-label="Editar nome da escola">
+              <i data-lucide="pencil"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn-icon bordered" id="btn-tema" onclick="alternarTema()" title="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro">
+          <i data-lucide="moon"></i>
+        </button>
+        <button class="btn" onclick="copiarResumoWhatsApp()" title="Copiar resumo para colar no WhatsApp">
+          <i data-lucide="share-2"></i> Compartilhar
+        </button>
+        <button class="btn" onclick="toggleSecaoTurma()" id="btn-turma">
+          <i data-lucide="users"></i> Turma &amp; alunos
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Indicadores -->
+  <section class="kpis wrap">
+    <div class="kpi">
+      <div class="kpi-head">
+        <span class="kpi-label">Média geral</span>
+        <span class="kpi-icon"><i data-lucide="trending-up"></i></span>
+      </div>
+      <span class="kpi-value" id="stat-media-geral">–</span>
+      <span class="kpi-sub">todas as disciplinas</span>
+    </div>
+    <div class="kpi">
+      <div class="kpi-head">
+        <span class="kpi-label">Média mínima</span>
+        <span class="kpi-icon"><i data-lucide="target"></i></span>
+      </div>
+      <span class="kpi-value" id="stat-meta-display">7,0</span>
+      <button class="mini-link" onclick="alterarMetaModal()">alterar meta</button>
+    </div>
+    <div class="kpi ok">
+      <div class="kpi-head">
+        <span class="kpi-label">Na meta</span>
+        <span class="kpi-icon"><i data-lucide="check"></i></span>
+      </div>
+      <span class="kpi-value" id="dash-aprovadas">0</span>
+      <span class="kpi-sub">disciplinas</span>
+    </div>
+    <div class="kpi warn">
+      <div class="kpi-head">
+        <span class="kpi-label">Abaixo da meta</span>
+        <span class="kpi-icon"><i data-lucide="alert-circle"></i></span>
+      </div>
+      <span class="kpi-value" id="dash-risco">0</span>
+      <span class="kpi-sub">disciplinas</span>
+    </div>
+  </section>
+
+  <!-- Seção da turma (opcional) -->
+  <section id="secao-turma" class="wrap hidden">
+    <div class="sheet pad">
+
+      <div class="turma-head">
+        <div>
+          <h2>Turma &amp; alunos</h2>
+          <p>Cadastre alunos, lance as notas bimestrais de cada disciplina e exporte o boletim da turma.</p>
+        </div>
+        <button class="btn btn-solid" onclick="gerarPDFTurma()">
+          <i data-lucide="file-down"></i> Baixar PDF da turma
+        </button>
+      </div>
+
+      <div class="well">
+        <div class="well-head">
+          <h3 id="form-aluno-titulo"><i data-lucide="user-plus"></i> Novo aluno &amp; notas</h3>
+          <button id="btn-cancelar-edicao" class="mini-link hidden" onclick="cancelarEdicaoAluno()">cancelar edição</button>
+        </div>
+
+        <input type="hidden" id="edit-aluno-id" value="">
+
+        <label class="label" for="aluno-nome-input">Nome completo do aluno</label>
+        <input type="text" id="aluno-nome-input" class="field field-name" placeholder="Ex.: Lucas Gabriel" maxlength="80" style="margin-top:6px">
+
+        <div class="notas-scroll">
+          <table class="notas-table">
+            <thead>
+              <tr>
+                <th>Disciplina</th>
+                <th style="width:74px">B1</th>
+                <th style="width:74px">B2</th>
+                <th style="width:74px">B3</th>
+                <th style="width:74px">B4</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-notas-aluno-form"></tbody>
+          </table>
+        </div>
+
+        <div class="form-foot">
+          <button class="btn btn-solid" onclick="salvarAlunoComNotas()">
+            <i data-lucide="save"></i> Salvar aluno
+          </button>
+        </div>
+      </div>
+
+      <div class="tlist" id="turma-lista"></div>
+
+    </div>
+  </section>
+
+  <!-- Conteúdo principal -->
+  <main class="wrap grid">
+
+    <!-- Coluna esquerda -->
+    <section class="col-left">
+
+      <div class="sheet pad">
+        <div class="sheet-head">
+          <span class="label label-icon"><i data-lucide="book-open"></i> Disciplinas</span>
+          <button class="btn btn-small" onclick="adicionarMateria()">
+            <i data-lucide="plus"></i> Nova disciplina
+          </button>
+        </div>
+        <div id="materia-tabs" class="tabs" role="tablist" aria-label="Disciplinas"></div>
+      </div>
+
+      <div class="sheet pad">
+        <div class="subject-head">
+          <div>
+            <div class="subject-title-row">
+              <h2 id="materia-nome-display">–</h2>
+              <span id="materia-stamp" class="stamp hidden"></span>
+            </div>
+            <p id="materia-status" class="status-line">Sem notas inseridas</p>
+          </div>
+          <div class="row-actions">
+            <button class="btn-icon" onclick="renomearMateriaAtual()" title="Renomear disciplina" aria-label="Renomear disciplina">
+              <i data-lucide="pencil"></i>
+            </button>
+            <button class="btn-icon danger" onclick="excluirMateriaAtual()" title="Apagar disciplina" aria-label="Apagar disciplina">
+              <i data-lucide="trash-2"></i>
+            </button>
+          </div>
+        </div>
+
+        <p class="label grades-label">Notas bimestrais · 0 a 10</p>
+        <div class="grades-grid">
+          <div class="grade-cell">
+            <label class="label" for="input-b1">1º bim.</label>
+            <input type="text" id="input-b1" class="field grade-input" inputmode="decimal" placeholder="–" oninput="salvarECalcular()" onblur="normalizarCampo(this)">
+          </div>
+          <div class="grade-cell">
+            <label class="label" for="input-b2">2º bim.</label>
+            <input type="text" id="input-b2" class="field grade-input" inputmode="decimal" placeholder="–" oninput="salvarECalcular()" onblur="normalizarCampo(this)">
+          </div>
+          <div class="grade-cell">
+            <label class="label" for="input-b3">3º bim.</label>
+            <input type="text" id="input-b3" class="field grade-input" inputmode="decimal" placeholder="–" oninput="salvarECalcular()" onblur="normalizarCampo(this)">
+          </div>
+          <div class="grade-cell">
+            <label class="label" for="input-b4">4º bim.</label>
+            <input type="text" id="input-b4" class="field grade-input" inputmode="decimal" placeholder="–" oninput="salvarECalcular()" onblur="normalizarCampo(this)">
+          </div>
+        </div>
+
+        <div class="margin-note">
+          <div id="simulador-texto" class="note-text">Preencha as notas para simular a média e a situação da disciplina.</div>
+        </div>
+
+        <div class="subject-foot">
+          <button class="mini-link" onclick="limparCamposMateria()">
+            <i data-lucide="rotate-ccw"></i> limpar notas desta disciplina
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Coluna direita -->
+    <section class="col-right">
+
+      <div class="sheet pad">
+        <div class="sheet-head">
+          <span class="label label-icon"><i data-lucide="chart-column"></i> Situação geral</span>
+          <span class="hint"><span id="dash-total">0</span> disciplinas</span>
+        </div>
+
+        <div id="chart-container" class="chart">
+          <div id="chart-meta" class="meta-line hidden">
+            <span id="chart-meta-label" class="meta-tag">meta</span>
+          </div>
+        </div>
+
+        <div class="legend">
+          <span><span class="swatch ok"></span> Na meta ou acima</span>
+          <span><span class="swatch warn"></span> Abaixo da meta</span>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- Rodapé -->
+  <footer class="foot wrap">
+    <span>Os dados ficam salvos apenas neste navegador</span>
+    <span>© <span id="ano-footer"></span></span>
+  </footer>
+
+  <!-- Template oculto para o PDF da turma -->
+  <div id="pdf-container" aria-hidden="true">
+    <div class="pdf-head">
+      <div>
+        <h1 id="pdf-escola">Boletim da Turma</h1>
+        <p class="pdf-sub">Relatório de notas bimestrais por disciplina</p>
+      </div>
+      <div class="pdf-meta">
+        <p>Data: <span id="pdf-data">–</span></p>
+        <p>Média mínima: <span id="pdf-meta-escola">7,0</span></p>
+      </div>
+    </div>
+    <div id="pdf-conteudo-alunos"></div>
+  </div>
+
+  <!-- Modal -->
+  <div id="overlay" class="overlay hidden">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
+      <div class="modal-head">
+        <h3 id="modal-titulo">Título</h3>
+        <button class="btn-icon" onclick="fecharModal()" aria-label="Fechar">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <form id="modal-form">
+        <div class="modal-body" id="modal-corpo"></div>
+        <div class="modal-foot">
+          <button type="button" class="btn" id="modal-cancelar" onclick="fecharModal()">Cancelar</button>
+          <button type="submit" class="btn btn-solid" id="modal-ok">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" role="status">
+    <i data-lucide="check"></i>
+    <span id="toast-msg">Mensagem</span>
+  </div>
+
+  <script>
+    /* ==========================================================
+       Calculadora de Notas — lógica do aplicativo
+       ========================================================== */
+
+    const STORAGE_KEY = 'boletim_papel_v1';
+    const LEGACY_KEY  = 'liquid_calc_school_data_v4';
+
+    const DEFAULT_STATE = {
+      escola: '',
+      mediaMinima: 7.0,
+      activeId: 'm1',
+      materias: [
+        { id: 'm1', nome: 'Matemática', notas: [null, null, null, null] },
+        { id: 'm2', nome: 'Português',  notas: [null, null, null, null] },
+        { id: 'm3', nome: 'História',   notas: [null, null, null, null] },
+        { id: 'm4', nome: 'Geografia',  notas: [null, null, null, null] }
+      ],
+      alunos: []
+    };
+
+    let appData = clonar(DEFAULT_STATE);
+
+    /* ---------- Utilidades ---------- */
+
+    function clonar(obj) { return JSON.parse(JSON.stringify(obj)); }
+
+    function esc(s) {
+      return String(s ?? '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    // 8.5 | 8,5 → 8.5 ; inválido/vazio → null
+    function parseNota(str) {
+      if (str === null || str === undefined) return null;
+      const limpo = String(str).trim().replace(',', '.');
+      if (limpo === '') return null;
+      const n = parseFloat(limpo);
+      if (isNaN(n)) return null;
+      return Math.min(10, Math.max(0, n));
+    }
+
+    function fmt(n, casas = 1) {
+      return n.toFixed(casas).replace('.', ',');
+    }
+
+    function calcularMedia(notas) {
+      if (!Array.isArray(notas)) return null;
+      const validas = notas.filter(n => n !== null && !isNaN(n));
+      if (validas.length === 0) return null;
+      return validas.reduce((a, b) => a + b, 0) / validas.length;
+    }
+
+    /* ---------- Persistência (com migração da versão antiga) ---------- */
+
+    function carregarDados() {
+      let salvo = null;
+      let legado = null;
+      try {
+        salvo = localStorage.getItem(STORAGE_KEY);
+        if (!salvo) legado = localStorage.getItem(LEGACY_KEY);
+      } catch (e) { /* armazenamento indisponível (modo privado, preview, etc.) */ }
+
+      if (salvo) {
+        try { appData = { ...clonar(DEFAULT_STATE), ...JSON.parse(salvo) }; }
+        catch (e) { console.error('Dados corrompidos, usando padrão.', e); appData = clonar(DEFAULT_STATE); }
+      } else {
+        // Migra a versão anterior (boletim indexado pelo NOME da matéria)
+        if (legado) {
+          try {
+            const old = JSON.parse(legado);
+            appData = { ...clonar(DEFAULT_STATE), ...old };
+            appData.escola = '';
+            const idPorNome = {};
+            appData.materias.forEach(m => { idPorNome[m.nome] = m.id; });
+            appData.alunos = (appData.alunos || []).map(a => {
+              const boletim = {};
+              Object.entries(a.boletim || {}).forEach(([nome, notas]) => {
+                const id = idPorNome[nome];
+                if (id) boletim[id] = notas;
+              });
+              return { ...a, boletim };
+            });
+          } catch (e) { console.error('Falha ao migrar dados antigos.', e); }
+        }
+      }
+
+      // Saneamento
+      if (!Array.isArray(appData.materias) || appData.materias.length === 0) {
+        appData.materias = clonar(DEFAULT_STATE.materias);
+      }
+      appData.materias.forEach(m => {
+        if (!Array.isArray(m.notas) || m.notas.length !== 4) m.notas = [null, null, null, null];
+        m.notas = m.notas.map(n => (typeof n === 'number' && !isNaN(n)) ? Math.min(10, Math.max(0, n)) : null);
+      });
+      if (!Array.isArray(appData.alunos)) appData.alunos = [];
+      if (typeof appData.escola !== 'string') appData.escola = '';
+      if (typeof appData.mediaMinima !== 'number' || isNaN(appData.mediaMinima)) appData.mediaMinima = 7.0;
+      appData.mediaMinima = Math.min(10, Math.max(0, appData.mediaMinima));
+      if (!appData.materias.some(m => m.id === appData.activeId)) {
+        appData.activeId = appData.materias[0].id;
+      }
+    }
+
+    function salvarDados() {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); }
+      catch (e) { /* armazenamento indisponível — mantém os dados só na sessão */ }
+    }
+
+    /* ---------- Sistema de modais ---------- */
+
+    let modalCtx = null;
+
+    function abrirModal(opts) {
+      return new Promise(resolve => {
+        modalCtx = { ...opts, resolve };
+        document.getElementById('modal-titulo').textContent = opts.titulo;
+        document.getElementById('modal-corpo').innerHTML = opts.corpo;
+
+        const ok = document.getElementById('modal-ok');
+        ok.textContent = opts.okLabel || 'Salvar';
+        ok.className = 'btn ' + (opts.danger ? 'btn-danger-solid' : 'btn-solid');
+        document.getElementById('modal-cancelar').classList.toggle('hidden', !!opts.escondeCancelar);
+
+        const overlay = document.getElementById('overlay');
+        overlay.classList.remove('hidden');
+        const input = document.getElementById('modal-input');
+        if (input) { input.focus(); input.select && input.select(); }
+      });
+    }
+
+    function concluirModal(valor) {
+      if (!modalCtx) return;
+      const resolve = modalCtx.resolve;
+      modalCtx = null;
+      document.getElementById('overlay').classList.add('hidden');
+      resolve(valor);
+    }
+
+    function fecharModal() { concluirModal(null); }
+
+    document.getElementById('modal-form').addEventListener('submit', e => {
+      e.preventDefault();
+      if (!modalCtx) return;
+      const input = document.getElementById('modal-input');
+
+      if (modalCtx.tipo === 'numero') {
+        const n = parseNota(input.value);
+        if (n === null) { input.classList.add('invalid'); input.focus(); return; }
+        concluirModal(n);
+        return;
+      }
+
+      if (modalCtx.tipo === 'confirm') { concluirModal(true); return; }
+
+      if (modalCtx.tipo === 'texto' && modalCtx.obrigatorio && input.value.trim() === '') {
+        input.classList.add('invalid'); input.focus(); return;
+      }
+      concluirModal(input.value.trim());
+    });
+
+    document.getElementById('overlay').addEventListener('mousedown', e => {
+      if (e.target === e.currentTarget) fecharModal();
+    });
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && modalCtx) fecharModal();
+    });
+
+    function pedirTextoP({ titulo, label, valor = '', placeholder = '', okLabel = 'Salvar', obrigatorio = true }) {
+      return abrirModal({
+        titulo, okLabel, tipo: 'texto', obrigatorio,
+        corpo: `
+          <label class="label">${esc(label)}</label>
+          <input type="text" id="modal-input" class="field" maxlength="60"
+                 value="${esc(valor)}" placeholder="${esc(placeholder)}" autocomplete="off">`
+      }).then(valorFinal => valorFinal === null ? null : valorFinal);
+    }
+
+    function pedirNumeroP({ titulo, label, valor = 7, okLabel = 'Salvar' }) {
+      const chips = [5, 6, 7].map(v =>
+        `<button type="button" class="chip-btn" onclick="document.getElementById('modal-input').value='${fmt(v)}'">${fmt(v)}</button>`
+      ).join('');
+      return abrirModal({
+        titulo, okLabel, tipo: 'numero',
+        corpo: `
+          <label class="label">${esc(label)}</label>
+          <input type="text" id="modal-input" class="field" inputmode="decimal"
+                 value="${fmt(valor)}" autocomplete="off" style="max-width:140px">
+          <div class="chips">${chips}</div>
+          <p class="modal-hint">Valor entre 0 e 10, com vírgula ou ponto.</p>`
+      });
+    }
+
+    function confirmarP({ titulo, mensagem, okLabel = 'Excluir' }) {
+      return abrirModal({
+        titulo, okLabel, danger: true, tipo: 'confirm',
+        corpo: `<p class="confirm-msg">${mensagem}</p>`
+      }).then(r => r === true);
+    }
+
+    /* ---------- Tema claro / escuro ---------- */
+
+    function atualizarIconeTema() {
+      const btn = document.getElementById('btn-tema');
+      if (!btn) return;
+      const escuro = document.documentElement.getAttribute('data-theme') === 'dark';
+      btn.innerHTML = `<i data-lucide="${escuro ? 'sun' : 'moon'}"></i>`;
+      lucide.createIcons();
+    }
+
+    function alternarTema() {
+      const atual = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+      const novo = atual === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', novo);
+      try { localStorage.setItem('boletim_theme', novo); } catch (e) { /* ignora */ }
+      atualizarIconeTema();
+      mostrarToast(novo === 'dark' ? 'Tema escuro ativado.' : 'Tema claro ativado.');
+    }
+
+    /* ---------- Abas: arraste com o mouse/caneta.
+       No celular o "empurrar pro lado" fica com a rolagem nativa,
+       que já traz inércia e é mais fluida. ---------- */
+
+    function atualizarFadesAba() {
+      const el = document.getElementById('materia-tabs');
+      if (!el) return;
+      const podeEsq = el.scrollLeft > 2;
+      const podeDir = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
+      // -22 desativa o desfoque; valores >= 0 mostram o degradê
+      el.style.setProperty('--mask-esq', (podeEsq ? 0 : -22) + 'px');
+      el.style.setProperty('--mask-dir', (podeDir ? 0 : -22) + 'px');
+    }
+
+    function rolarParaAbaAtiva(suave = true) {
+      const el = document.getElementById('materia-tabs');
+      if (!el || !el.querySelector('.tab')) return;
+      const ativa = el.querySelector('.tab.active');
+      if (ativa) {
+        const fora = el.getBoundingClientRect();
+        const alvo = ativa.getBoundingClientRect();
+        if (alvo.left < fora.left + 10 || alvo.right > fora.right - 10) {
+          el.scrollTo({ left: Math.max(0, ativa.offsetLeft - 16), behavior: suave ? 'smooth' : 'auto' });
+        }
+      }
+      atualizarFadesAba();
+    }
+
+    function tornarTabsArrastaveis(el) {
+      if (!el || el.dataset.arrasteOk) return;
+      el.dataset.arrasteOk = '1';
+
+      let pressionado = false, moveu = false;
+      let x0 = 0, y0 = 0, scroll0 = 0, ux = 0, ut = 0, vel = 0, raf = null;
+
+      const pararInercia = () => { if (raf) { cancelAnimationFrame(raf); raf = null; } };
+
+      const rodarInercia = () => {
+        vel *= .94;
+        el.scrollLeft -= vel * 16.7;
+        if (Math.abs(vel) < .05 || el.scrollLeft <= 0 || el.scrollLeft + el.clientWidth >= el.scrollWidth) {
+          raf = null;
+          atualizarFadesAba();
+          return;
+        }
+        raf = requestAnimationFrame(rodarInercia);
+      };
+
+      el.addEventListener('scroll', atualizarFadesAba, { passive: true });
+
+      el.addEventListener('pointerdown', e => {
+        // Toque no celular: usa a rolagem nativa (mais fluida, com inércia).
+        // Mouse/pen: arraste manualmente, pois não existe arraste nativo.
+        if (e.pointerType !== 'mouse' && e.pointerType !== 'pen') return;
+        pararInercia();
+        pressionado = true;
+        moveu = false;
+        x0 = e.clientX;
+        y0 = e.clientY;
+        scroll0 = el.scrollLeft;
+        ux = e.clientX;
+        ut = e.timeStamp;
+        vel = 0;
+        try { el.setPointerCapture(e.pointerId); } catch (err) { /* captura opcional */ }
+      });
+
+      el.addEventListener('pointermove', e => {
+        if (!pressionado) return;
+        const dx = e.clientX - x0;
+        const dy = e.clientY - y0;
+
+        if (!moveu) {
+          if (Math.abs(dx) < 6) return;                       // ainda é um "toque"
+          if (e.pointerType === 'touch' && Math.abs(dy) > Math.abs(dx)) {
+            pressionado = false;                              // gesto vertical → deixa a página rolar
+            return;
+          }
+          moveu = true;
+          el.classList.add('arrastando');
+        }
+
+        el.scrollLeft = scroll0 - dx;
+        const ms = e.timeStamp - ut;
+        if (ms > 0) vel = (e.clientX - ux) / ms;
+        ux = e.clientX;
+        ut = e.timeStamp;
+        atualizarFadesAba();
+      });
+
+      const soltar = e => {
+        if (!pressionado) return;
+        pressionado = false;
+        el.classList.remove('arrastando');
+        if (e.type === 'pointercancel') { moveu = false; return; }
+        if (moveu && Math.abs(vel) > .25) raf = requestAnimationFrame(rodarInercia);
+      };
+      el.addEventListener('pointerup', soltar);
+      el.addEventListener('pointercancel', soltar);
+
+      // Depois de arrastar, o clique sobre uma aba não deve disparar seleção
+      el.addEventListener('click', e => {
+        if (moveu) { e.stopPropagation(); e.preventDefault(); moveu = false; }
+      }, true);
+
+      atualizarFadesAba();
+    }
+
+    /* ---------- Cabeçalho / marca ---------- */
+
+    function renderMarca() {
+      const nome = appData.escola || 'Calculadora de Notas';
+      document.getElementById('escola-nome').textContent = nome;
+      document.title = nome + ' · Boletim';
+      document.getElementById('stat-meta-display').textContent = fmt(appData.mediaMinima);
+    }
+
+    async function editarEscola() {
+      const nome = await pedirTextoP({
+        titulo: 'Nome da escola',
+        label: 'Aparece no cabeçalho e no PDF da turma',
+        valor: appData.escola,
+        placeholder: 'Ex.: E.E. Governador Mário Covas',
+        okLabel: 'Salvar',
+        obrigatorio: false
+      });
+      if (nome === null) return;
+      appData.escola = nome.trim();
+      salvarDados();
+      renderMarca();
+      mostrarToast(appData.escola ? 'Nome atualizado.' : 'Nome removido — usando padrão.');
+    }
+
+    /* ---------- Turma: abrir/fechar seção ---------- */
+
+    function toggleSecaoTurma() {
+      const secao = document.getElementById('secao-turma');
+      const vaiAbrir = secao.classList.contains('hidden');
+      secao.classList.toggle('hidden');
+      document.getElementById('btn-turma').classList.toggle('btn-solid', !vaiAbrir);
+      if (vaiAbrir) {
+        renderFormularioNotas();
+        renderListaTurma();
+        secao.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+    /* ---------- Disciplinas: abas e folha ativa ---------- */
+
+    function getMateriaAtiva() {
+      return appData.materias.find(m => m.id === appData.activeId) || appData.materias[0];
+    }
+
+    function renderTabs() {
+      const container = document.getElementById('materia-tabs');
+      container.innerHTML = '';
+
+      appData.materias.forEach(mat => {
+        const media = calcularMedia(mat.notas);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'tab' + (mat.id === appData.activeId ? ' active' : '');
+        btn.setAttribute('role', 'tab');
+        btn.setAttribute('aria-selected', mat.id === appData.activeId ? 'true' : 'false');
+        btn.onclick = () => {
+          appData.activeId = mat.id;
+          salvarDados();
+          renderTabs();
+          carregarMateriaAtiva();
+        };
+
+        let dot = '';
+        if (media !== null) {
+          dot = `<span class="tab-dot ${media >= appData.mediaMinima ? 'ok' : 'warn'}"></span>`;
+        }
+        const mediaTxt = media !== null ? `<span class="tab-media">${fmt(media)}</span>` : '';
+        btn.innerHTML = `${dot}<span>${esc(mat.nome)}</span>${mediaTxt}`;
+        container.appendChild(btn);
+      });
+
+      // Mantém a aba ativa visível na faixa arrastável
+      const primeiraRenderizacao = !container.dataset.abaAtiva;
+      if (primeiraRenderizacao || container.dataset.abaAtiva !== appData.activeId) {
+        container.dataset.abaAtiva = appData.activeId;
+        rolarParaAbaAtiva(!primeiraRenderizacao);
+      } else {
+        atualizarFadesAba();
+      }
+    }
+
+    function carregarMateriaAtiva() {
+      const mat = getMateriaAtiva();
+      document.getElementById('materia-nome-display').textContent = mat.nome;
+
+      for (let i = 1; i <= 4; i++) {
+        const val = mat.notas[i - 1];
+        document.getElementById(`input-b${i}`).value = (val !== null && val !== undefined) ? fmt(val) : '';
+      }
+      atualizarCalculos();
+    }
+
+    function salvarECalcular() {
+      const mat = getMateriaAtiva();
+      for (let i = 1; i <= 4; i++) {
+        mat.notas[i - 1] = parseNota(document.getElementById(`input-b${i}`).value);
+      }
+      salvarDados();
+      atualizarCalculos();
+      renderTabs();
+      renderSituacao();
+    }
+
+    // Ao sair do campo, reescreve o valor em formato brasileiro (vírgula)
+    function normalizarCampo(input) {
+      const n = parseNota(input.value);
+      input.value = (n === null) ? '' : fmt(n);
+    }
+
+    function atualizarCalculos() {
+      const mat = getMateriaAtiva();
+      const meta = appData.mediaMinima;
+      const stamp = document.getElementById('materia-stamp');
+      const badgeStatus = document.getElementById('materia-status');
+      const textoSimulador = document.getElementById('simulador-texto');
+
+      const notasValidas = mat.notas.filter(n => n !== null && !isNaN(n));
+      const qtd = notasValidas.length;
+
+      if (qtd === 0) {
+        stamp.classList.add('hidden');
+        badgeStatus.textContent = 'Sem notas lançadas';
+        textoSimulador.innerHTML = 'Preencha pelo menos o <strong>1º bimestre</strong> para simular a média e a situação da disciplina.';
+        return;
+      }
+
+      const mediaAtual = notasValidas.reduce((a, b) => a + b, 0) / qtd;
+
+      if (qtd === 4) {
+        if (mediaAtual >= meta) {
+          stamp.textContent = 'Aprovado';
+          stamp.className = 'stamp ok';
+          stamp.classList.remove('hidden');
+          badgeStatus.textContent = `Média final ${fmt(mediaAtual, 2)} — acima da meta de ${fmt(meta)}`;
+          textoSimulador.innerHTML = `<span class="ok">Aprovado.</span> Média final <strong>${fmt(mediaAtual, 2)}</strong> na disciplina ${esc(mat.nome)}.`;
+        } else {
+          stamp.textContent = 'Abaixo da meta';
+          stamp.className = 'stamp warn';
+          stamp.classList.remove('hidden');
+          badgeStatus.textContent = `Média final ${fmt(mediaAtual, 2)} — abaixo da meta de ${fmt(meta)}`;
+          textoSimulador.innerHTML = `<span class="warn">Atenção.</span> Faltaram <strong>${fmt(meta - mediaAtual, 2)}</strong> pontos para alcançar a média ${fmt(meta)}.`;
+        }
+        return;
+      }
+
+      stamp.classList.add('hidden');
+      badgeStatus.textContent = `Média parcial: ${fmt(mediaAtual, 2)} · ${qtd} de 4 bimestres lançados`;
+
+      const somaAtual = notasValidas.reduce((a, b) => a + b, 0);
+      const pontosParaPassar = (meta * 4) - somaAtual;
+      const faltam = 4 - qtd;
+      const necessariasPorBimestre = pontosParaPassar / faltam;
+
+      if (necessariasPorBimestre <= 0) {
+        textoSimulador.innerHTML = `<span class="ok">Objetivo atingido.</span> As notas atuais já garantem a média ${fmt(meta)}, mesmo nos bimestres restantes.`;
+      } else if (necessariasPorBimestre > 10) {
+        textoSimulador.innerHTML = `<span class="warn">Situação difícil.</span> Para atingir a meta seria preciso <strong>10,0</strong> em cada um dos próximos ${faltam} bimestre(s) — vale conversar com o professor sobre recuperação.`;
+      } else {
+        textoSimulador.innerHTML = `Para atingir a média <strong>${fmt(meta)}</strong>, precisa de <strong>${fmt(necessariasPorBimestre)}</strong> em cada um dos próximos <strong>${faltam}</strong> bimestre(s).`;
+      }
+    }
+
+    async function adicionarMateria() {
+      const nome = await pedirTextoP({
+        titulo: 'Nova disciplina',
+        label: 'Nome da disciplina',
+        placeholder: 'Ex.: Física',
+        okLabel: 'Criar'
+      });
+      if (nome === null) return;
+      if (!nome) { mostrarToast('Informe um nome para a disciplina.'); return; }
+      if (appData.materias.some(m => m.nome.toLowerCase() === nome.toLowerCase())) {
+        mostrarToast('Já existe uma disciplina com esse nome.');
+        return;
+      }
+      const novoId = 'm_' + Date.now();
+      appData.materias.push({ id: novoId, nome, notas: [null, null, null, null] });
+      appData.activeId = novoId;
+      salvarDados();
+      renderTabs();
+      carregarMateriaAtiva();
+      renderSituacao();
+      renderFormularioNotas();
+      mostrarToast(`Disciplina "${nome}" criada.`);
+    }
+
+    async function renomearMateriaAtual() {
+      const mat = getMateriaAtiva();
+      const novoNome = await pedirTextoP({
+        titulo: 'Renomear disciplina',
+        label: 'Novo nome',
+        valor: mat.nome,
+        okLabel: 'Salvar'
+      });
+      if (novoNome === null || !novoNome || novoNome === mat.nome) return;
+      const antigo = mat.nome;
+      mat.nome = novoNome;
+      salvarDados();
+      renderTabs();
+      carregarMateriaAtiva();
+      renderFormularioNotas();
+      renderListaTurma();
+      mostrarToast(`"${antigo}" renomeada para "${novoNome}".`);
+    }
+
+    async function excluirMateriaAtual() {
+      if (appData.materias.length <= 1) {
+        mostrarToast('Mantenha ao menos uma disciplina na lista.');
+        return;
+      }
+      const mat = getMateriaAtiva();
+      const ok = await confirmarP({
+        titulo: 'Apagar disciplina',
+        mensagem: `Apagar <strong>${esc(mat.nome)}</strong> e as notas lançadas nela? As notas desta disciplina também saem do boletim dos alunos cadastrados.`,
+        okLabel: 'Apagar'
+      });
+      if (!ok) return;
+      appData.materias = appData.materias.filter(m => m.id !== mat.id);
+      appData.alunos.forEach(a => { delete a.boletim[mat.id]; });
+      appData.activeId = appData.materias[0].id;
+      salvarDados();
+      renderTabs();
+      carregarMateriaAtiva();
+      renderSituacao();
+      renderFormularioNotas();
+      renderListaTurma();
+      mostrarToast('Disciplina removida.');
+    }
+
+    function limparCamposMateria() {
+      const mat = getMateriaAtiva();
+      mat.notas = [null, null, null, null];
+      salvarDados();
+      carregarMateriaAtiva();
+      renderTabs();
+      renderSituacao();
+      mostrarToast('Notas desta disciplina limpas.');
+    }
+
+    async function alterarMetaModal() {
+      const val = await pedirNumeroP({
+        titulo: 'Média mínima',
+        label: 'Nota média necessária para aprovação',
+        valor: appData.mediaMinima
+      });
+      if (val === null) return;
+      appData.mediaMinima = val;
+      salvarDados();
+      renderMarca();
+      atualizarCalculos();
+      renderTabs();
+      renderSituacao();
+      renderListaTurma();
+      mostrarToast(`Meta alterada para ${fmt(val)}.`);
+    }
+
+    /* ---------- Situação geral + gráfico ---------- */
+
+    function renderSituacao() {
+      const meta = appData.mediaMinima;
+      let aprovadas = 0, risco = 0, somaMedias = 0, comNotas = 0;
+
+      appData.materias.forEach(m => {
+        const media = calcularMedia(m.notas);
+        if (media !== null) {
+          somaMedias += media;
+          comNotas++;
+          if (media >= meta) aprovadas++; else risco++;
+        }
+      });
+
+      document.getElementById('dash-aprovadas').textContent = aprovadas;
+      document.getElementById('dash-risco').textContent = risco;
+      document.getElementById('dash-total').textContent = appData.materias.length;
+
+      const geral = document.getElementById('stat-media-geral');
+      if (comNotas > 0) {
+        geral.textContent = fmt(somaMedias / comNotas);
+        geral.classList.remove('dim');
+      } else {
+        geral.textContent = '–';
+        geral.classList.add('dim');
+      }
+
+      renderGrafico();
+    }
+
+    function renderGrafico() {
+      const container = document.getElementById('chart-container');
+      const metaEl = document.getElementById('chart-meta');
+
+      const meta = appData.mediaMinima;
+      metaEl.style.bottom = (meta / 10 * 100) + '%';
+      metaEl.classList.toggle('hidden', appData.materias.length === 0);
+      document.getElementById('chart-meta-label').textContent = 'meta ' + fmt(meta);
+
+      if (appData.materias.length === 0) {
+        container.querySelectorAll('.bar-col, .chart-empty').forEach(el => el.remove());
+        const vazio = document.createElement('div');
+        vazio.className = 'chart-empty';
+        vazio.textContent = 'Nenhuma disciplina cadastrada.';
+        container.appendChild(vazio);
+        return;
+      }
+
+      const existentes = container.querySelectorAll('.bar-col');
+      const mesmos = existentes.length === appData.materias.length &&
+        Array.from(existentes).every((el, i) => el.dataset.id === appData.materias[i].id);
+
+      // Mesmas disciplinas: atualiza as barras no lugar (mantém a animação suave)
+      if (mesmos) {
+        existentes.forEach((el, i) => {
+          const mat = appData.materias[i];
+          const media = calcularMedia(mat.notas);
+          const isAprovado = media !== null && media >= meta;
+          const bar = el.querySelector('.bar');
+          el.querySelector('.bar-val').textContent = media !== null ? fmt(media) : '';
+          bar.style.height = (media !== null ? (media / 10) * 100 : 0) + '%';
+          bar.className = 'bar' + (media === null ? '' : (isAprovado ? ' ok' : ' warn'));
+          el.classList.toggle('sel', mat.id === appData.activeId);
+          el.title = mat.nome + (media !== null ? ` — média ${fmt(media)}` : ' — sem notas');
+        });
+        return;
+      }
+
+      container.querySelectorAll('.bar-col, .chart-empty').forEach(el => el.remove());
+
+      appData.materias.forEach(mat => {
+        const media = calcularMedia(mat.notas);
+        const isAprovado = media !== null && media >= meta;
+        const altura = media !== null ? (media / 10) * 100 : 0;
+
+        const col = document.createElement('div');
+        col.className = 'bar-col' + (mat.id === appData.activeId ? ' sel' : '');
+        col.dataset.id = mat.id;
+        col.setAttribute('role', 'button');
+        col.setAttribute('tabindex', '0');
+        col.title = mat.nome + (media !== null ? ` — média ${fmt(media)}` : ' — sem notas');
+        col.onclick = () => selecionarMateria(mat.id);
+        col.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selecionarMateria(mat.id); } };
+
+        const barCls = media === null ? '' : (isAprovado ? ' ok' : ' warn');
+        col.innerHTML = `
+          <span class="bar-val">${media !== null ? fmt(media) : ''}</span>
+          <div class="bar-track"><div class="bar${barCls}" style="height: ${altura}%"></div></div>
+          <span class="bar-name">${esc(mat.nome)}</span>`;
+
+        container.appendChild(col);
+      });
+    }
+
+    function selecionarMateria(id) {
+      appData.activeId = id;
+      salvarDados();
+      renderTabs();
+      carregarMateriaAtiva();
+      renderGrafico();
+    }
+
+    /* ---------- Turma: formulário de aluno com notas ---------- */
+
+    function renderFormularioNotas(alunoExistente = null) {
+      const tbody = document.getElementById('tbody-notas-aluno-form');
+      tbody.innerHTML = '';
+
+      appData.materias.forEach(mat => {
+        const notasAtuais = (alunoExistente && alunoExistente.boletim && alunoExistente.boletim[mat.id])
+          ? alunoExistente.boletim[mat.id]
+          : [null, null, null, null];
+
+        const tr = document.createElement('tr');
+        let tds = `<td class="disc">${esc(mat.nome)}</td>`;
+        for (let b = 0; b < 4; b++) {
+          const v = notasAtuais[b];
+          tds += `<td class="nota" data-label="B${b + 1}"><input type="text" class="nota-input aluno-nota-input" inputmode="decimal"
+                    value="${(v !== null && v !== undefined) ? fmt(v) : ''}"
+                    data-mat="${esc(mat.id)}" data-bim="${b}" maxlength="5"
+                    onblur="normalizarCampo(this)" aria-label="${esc(mat.nome)} bimestre ${b + 1}"></td>`;
+        }
+        tr.innerHTML = tds;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function salvarAlunoComNotas() {
+      const nomeInput = document.getElementById('aluno-nome-input');
+      const editId = document.getElementById('edit-aluno-id').value;
+      const nome = nomeInput.value.trim();
+
+      if (!nome) {
+        nomeInput.classList.add('invalid');
+        nomeInput.focus();
+        mostrarToast('Informe o nome completo do aluno.');
+        return;
+      }
+      nomeInput.classList.remove('invalid');
+
+      const boletim = {};
+      document.querySelectorAll('.aluno-nota-input').forEach(input => {
+        const matId = input.getAttribute('data-mat');
+        const bim = parseInt(input.getAttribute('data-bim'), 10);
+        if (!boletim[matId]) boletim[matId] = [null, null, null, null];
+        boletim[matId][bim] = parseNota(input.value);
+      });
+
+      if (editId) {
+        const aluno = appData.alunos.find(a => a.id === editId);
+        if (aluno) {
+          aluno.nome = nome;
+          aluno.boletim = boletim;
+          mostrarToast(`Boletim de ${nome} atualizado.`);
+        }
+      } else {
+        appData.alunos.push({ id: 'aluno_' + Date.now(), nome, boletim });
+        mostrarToast(`Aluno ${nome} cadastrado.`);
+      }
+
+      salvarDados();
+      cancelarEdicaoAluno();
+      renderListaTurma();
+    }
+
+    function editarAluno(id) {
+      const aluno = appData.alunos.find(a => a.id === id);
+      if (!aluno) return;
+
+      document.getElementById('edit-aluno-id').value = aluno.id;
+      document.getElementById('aluno-nome-input').value = aluno.nome;
+      document.getElementById('form-aluno-titulo').innerHTML = `<i data-lucide="user-pen"></i> Editando: ${esc(aluno.nome)}`;
+      document.getElementById('btn-cancelar-edicao').classList.remove('hidden');
+
+      renderFormularioNotas(aluno);
+      lucide.createIcons();
+      document.getElementById('secao-turma').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function cancelarEdicaoAluno() {
+      document.getElementById('edit-aluno-id').value = '';
+      document.getElementById('aluno-nome-input').value = '';
+      document.getElementById('form-aluno-titulo').innerHTML = `<i data-lucide="user-plus"></i> Novo aluno &amp; notas`;
+      document.getElementById('btn-cancelar-edicao').classList.add('hidden');
+      renderFormularioNotas();
+      lucide.createIcons();
+    }
+
+    async function excluirAluno(id) {
+      const aluno = appData.alunos.find(a => a.id === id);
+      if (!aluno) return;
+      const ok = await confirmarP({
+        titulo: 'Remover aluno',
+        mensagem: `Remover <strong>${esc(aluno.nome)}</strong> da turma? Todo o boletim dele será apagado.`,
+        okLabel: 'Remover'
+      });
+      if (!ok) return;
+      appData.alunos = appData.alunos.filter(a => a.id !== id);
+      salvarDados();
+      renderListaTurma();
+      mostrarToast('Aluno removido da turma.');
+    }
+
+    /* ---------- Turma: lista (vira cartões no celular) ---------- */
+
+    function mediaDoAluno(aluno) {
+      let soma = 0, qtd = 0, abaixo = 0;
+      appData.materias.forEach(m => {
+        const notas = aluno.boletim[m.id];
+        if (!notas) return;
+        const media = calcularMedia(notas);
+        if (media !== null) {
+          soma += media; qtd++;
+          if (media < appData.mediaMinima) abaixo++;
+        }
+      });
+      return { geral: qtd > 0 ? soma / qtd : null, qtd, abaixo };
+    }
+
+    function renderListaTurma() {
+      const container = document.getElementById('turma-lista');
+      const meta = appData.mediaMinima;
+
+      if (appData.alunos.length === 0) {
+        container.innerHTML = `<div class="tlist-empty">Nenhum aluno cadastrado ainda — use o formulário acima para começar.</div>`;
+        return;
+      }
+
+      let html = `
+        <div class="tlist-row head">
+          <span class="label">Aluno</span>
+          <span class="label">Disciplinas</span>
+          <span class="label" style="text-align:center">Média</span>
+          <span class="label" style="text-align:center">Situação</span>
+          <span class="label" style="text-align:right">Ações</span>
+        </div>`;
+
+      appData.alunos.forEach(aluno => {
+        const { geral, qtd, abaixo } = mediaDoAluno(aluno);
+        const aprovado = geral !== null && geral >= meta;
+
+        const chip = geral === null
+          ? `<span class="chip mute">sem notas</span>`
+          : (aprovado ? `<span class="chip ok">aprovado</span>` : `<span class="chip warn">atenção</span>`);
+
+        const sub = abaixo > 0
+          ? `${qtd} disciplinas · ${abaixo} abaixo da meta`
+          : `${qtd} disciplinas`;
+
+        html += `
+          <div class="tlist-row">
+            <div class="tc tc-nome" data-label="Aluno">
+              <div class="tc-main">${esc(aluno.nome)}</div>
+            </div>
+            <div class="tc" data-label="Disciplinas"><div class="tc-sub">${sub}</div></div>
+            <div class="tc tc-media ${geral === null ? '' : (aprovado ? 'ok' : 'warn')}" data-label="Média geral">
+              ${geral !== null ? fmt(geral, 2) : '–'}
+            </div>
+            <div class="tc tc-sit" data-label="Situação">${chip}</div>
+            <div class="tc tc-actions" data-label="Ações">
+              <button class="btn-icon" onclick="editarAluno('${aluno.id}')" title="Editar aluno e notas" aria-label="Editar ${esc(aluno.nome)}"><i data-lucide="pencil"></i></button>
+              <button class="btn-icon danger" onclick="excluirAluno('${aluno.id}')" title="Remover aluno" aria-label="Remover ${esc(aluno.nome)}"><i data-lucide="trash-2"></i></button>
+            </div>
+          </div>`;
+      });
+
+      container.innerHTML = html;
+      lucide.createIcons();
+    }
+
+    /* ---------- PDF da turma ---------- */
+
+    async function gerarPDFTurma() {
+      if (appData.alunos.length === 0) {
+        mostrarToast('Cadastre pelo menos um aluno para gerar o PDF.');
+        return;
+      }
+
+      mostrarToast('Gerando PDF…');
+
+      document.getElementById('pdf-escola').textContent = appData.escola || 'Boletim da Turma';
+      document.getElementById('pdf-data').textContent = new Date().toLocaleDateString('pt-BR');
+      document.getElementById('pdf-meta-escola').textContent = fmt(appData.mediaMinima);
+
+      const conteudo = document.getElementById('pdf-conteudo-alunos');
+      conteudo.innerHTML = '';
+      const meta = appData.mediaMinima;
+
+      appData.alunos.forEach(aluno => {
+        const div = document.createElement('div');
+        div.className = 'pdf-aluno';
+
+        let linhas = '';
+        let soma = 0, qtd = 0;
+
+        appData.materias.forEach(m => {
+          const n = aluno.boletim[m.id] || [null, null, null, null];
+          const media = calcularMedia(n);
+          if (media !== null) { soma += media; qtd++; }
+          const c = n.map(v => (v !== null && v !== undefined) ? fmt(v) : '–');
+          const sit = media === null
+            ? '<span style="color:#94a3b8">–</span>'
+            : (media >= meta
+              ? '<span class="pdf-ok">Aprovado</span>'
+              : '<span class="pdf-warn">Atenção</span>');
+          linhas += `
+            <tr>
+              <td class="disc">${esc(m.nome)}</td>
+              <td>${c[0]}</td><td>${c[1]}</td><td>${c[2]}</td><td>${c[3]}</td>
+              <td><strong>${media !== null ? fmt(media, 2) : '–'}</strong></td>
+              <td class="sit">${sit}</td>
+            </tr>`;
+        });
+
+        const geral = qtd > 0 ? soma / qtd : null;
+        const geralTxt = geral === null
+          ? '<span style="color:#94a3b8">sem notas lançadas</span>'
+          : `<span class="${geral >= meta ? 'pdf-ok' : 'pdf-warn'}">${fmt(geral, 2)} — ${geral >= meta ? 'Aprovado' : 'Atenção'}</span>`;
+
+        div.innerHTML = `
+          <div class="pdf-aluno-head">
+            <h3>${esc(aluno.nome)}</h3>
+            <span>Boletim individual</span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left">Disciplina</th>
+                <th>B1</th><th>B2</th><th>B3</th><th>B4</th>
+                <th>Média</th><th>Situação</th>
+              </tr>
+            </thead>
+            <tbody>${linhas}</tbody>
+          </table>
+          <div class="pdf-geral">
+            <span>Média geral do aluno:</span>
+            <span>${geralTxt}</span>
+          </div>`;
+
+        conteudo.appendChild(div);
+      });
+
+      const containerEl = document.getElementById('pdf-container');
+      try {
+        const canvas = await html2canvas(containerEl, {
+          scale: 2,
+          backgroundColor: '#ffffff',
+          useCORS: true,
+          logging: false
+        });
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+
+        const margemX = 0;
+        const largura = 210;
+        const alturaPagina = 297;
+        const alturaImg = (canvas.height * largura) / canvas.width;
+        let restante = alturaImg;
+        let posicao = 0;
+
+        pdf.addImage(imgData, 'JPEG', margemX, posicao, largura, alturaImg);
+        restante -= alturaPagina;
+
+        while (restante >= 0) {
+          posicao = restante - alturaImg;
+          pdf.addPage();
+          pdf.addImage(imgData, 'JPEG', margemX, posicao, largura, alturaImg);
+          restante -= alturaPagina;
+        }
+
+        pdf.save(`Boletim_Turma_${new Date().toISOString().slice(0, 10)}.pdf`);
+        mostrarToast('PDF baixado com sucesso.');
+      } catch (err) {
+        console.error('Erro ao gerar PDF:', err);
+        mostrarToast('Não foi possível gerar o PDF.');
+      }
+    }
+
+    /* ---------- Compartilhar no WhatsApp ---------- */
+
+    function copiarResumoWhatsApp() {
+      const meta = appData.mediaMinima;
+      const titulo = appData.escola || 'Boletim escolar';
+      let msg = `*${titulo}*\nMédia mínima: ${fmt(meta)}\n\n`;
+
+      appData.materias.forEach(m => {
+        const media = calcularMedia(m.notas);
+        const marca = media === null ? '–' : (media >= meta ? '✔' : '✘');
+        msg += `${marca} *${m.nome}*: ${media !== null ? fmt(media) : 'sem notas'}\n`;
+      });
+
+      let soma = 0, qtd = 0;
+      appData.materias.forEach(m => {
+        const media = calcularMedia(m.notas);
+        if (media !== null) { soma += media; qtd++; }
+      });
+      msg += `\n*Média geral:* ${qtd > 0 ? fmt(soma / qtd) : '–'}`;
+
+      const finalizar = () => mostrarToast('Resumo copiado — cole no WhatsApp.');
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(msg).then(finalizar).catch(() => copiarFallback(msg, finalizar));
+      } else {
+        copiarFallback(msg, finalizar);
+      }
+    }
+
+    function copiarFallback(texto, done) {
+      const el = document.createElement('textarea');
+      el.value = texto;
+      el.style.position = 'fixed';
+      el.style.left = '-9999px';
+      document.body.appendChild(el);
+      el.select();
+      try { document.execCommand('copy'); done(); }
+      catch (e) { mostrarToast('Não foi possível copiar automaticamente.'); }
+      document.body.removeChild(el);
+    }
+
+    /* ---------- Toast ---------- */
+
+    let toastTimer = null;
+    function mostrarToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-msg').textContent = msg;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
+    }
+
+    /* ---------- Inicialização ---------- */
+
+    window.onload = function () {
+      carregarDados();
+      document.getElementById('ano-footer').textContent = new Date().getFullYear();
+      renderMarca();
+      renderTabs();
+      carregarMateriaAtiva();
+      renderSituacao();
+      renderFormularioNotas();
+      renderListaTurma();
+      atualizarIconeTema();
+      lucide.createIcons();
+      tornarTabsArrastaveis(document.getElementById('materia-tabs'));
+
+      // Sombra sutil na topbar depois de rolar (feedback de profundidade)
+      const topbarEl = document.querySelector('.topbar');
+      if (topbarEl) {
+        window.addEventListener('scroll', () => {
+          topbarEl.classList.toggle('rolou', window.scrollY > 8);
+        }, { passive: true });
+      }
+    };
+  </script>
+</body>
+</html>
