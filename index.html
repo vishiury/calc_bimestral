@@ -4,6 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Calculadora de notas bimestrais com simulador de média, boletim da turma e exportação em PDF. Os dados ficam salvos no seu navegador.">
+  <meta name="theme-color" content="#f4f2ee" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#131110" media="(prefers-color-scheme: dark)">
+    <!-- Favicons gerados pelo favicon.io -->
+<!-- Favicons gerados pelo favicon.io -->
+<link rel="apple-touch-icon" sizes="180x180" href="favicon_io/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon_io/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon_io/favicon-16x16.png">
+<link rel="manifest" href="favicon_io/site.webmanifest">
   <title>Calculadora de Notas · Boletim</title>
 
   <script>
@@ -22,9 +31,11 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">
 
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <!-- Versões FIXADAS (nunca @latest em produção) + SRI (o navegador recusa o
+       arquivo se for alterado no caminho) + defer (não bloqueiam a pintura). -->
+  <script defer src="https://unpkg.com/lucide@1.68.0/dist/umd/lucide.min.js" integrity="sha384-wnWTr2TdZs5YYvmy/j9VgTRRSmVu6+HuDKAfjAkfBQHvcsI/59wGyMue0LRk0fa7" crossorigin="anonymous"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" integrity="sha384-fCAW/rDWORTbQXSiB7mOg0QtQ5c+r0f544y6XoKjuVva0nMBlCpNUjiFeG5iMdS3" crossorigin="anonymous"></script>
 
   <style>
     /* ============================================================
@@ -173,6 +184,16 @@
 
     .wrap { width: 100%; max-width: 1100px; margin: 0 auto; padding: 0 20px; }
     .hidden { display: none !important; }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px; height: 1px;
+      padding: 0; margin: -1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+      border: 0;
+    }
 
     ::selection { background: #fde6cf; color: #7c2d12; }
 
@@ -415,6 +436,7 @@
     .btn-icon.bordered { background: var(--glass-hover); border-color: var(--glass-edge); color: var(--ink-mute); }
     .btn-icon.bordered:hover { background: var(--card); border-color: var(--glass-edge); color: var(--ink); transform: scale(1.05); }
     .btn-icon:active { transform: scale(.92); }
+    .btn-icon:disabled { opacity: .3; pointer-events: none; }
 
     .btn svg, .btn-icon svg, .mini-link svg { width: 15px; height: 15px; }
 
@@ -895,11 +917,31 @@
     .form-foot { display: flex; justify-content: flex-end; gap: 10px; }
 
     /* Lista de alunos — vira cartões no celular */
-    .tlist { margin-top: 20px; }
+    /* Busca + ordenação da lista de alunos */
+    .tlist-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    .busca-wrap { position: relative; flex: 1; min-width: 200px; }
+    .busca-wrap svg {
+      position: absolute;
+      left: 12px; top: 50%;
+      transform: translateY(-50%);
+      width: 15px; height: 15px;
+      color: var(--ink-faint);
+      pointer-events: none;
+    }
+    .busca-wrap .field { padding-left: 36px; }
+    .select-ordem { flex: 0 0 auto; min-width: 148px; width: auto; cursor: pointer; }
+
+    .tlist { margin-top: 14px; }
 
     .tlist-row {
       display: grid;
-      grid-template-columns: 1.5fr 1.3fr .8fr .9fr 92px;
+      grid-template-columns: 1.5fr 1.3fr .8fr .9fr 134px;
       gap: 12px;
       align-items: center;
       padding: 13px 10px;
@@ -950,6 +992,26 @@
     .tc-media.warn { color: var(--red); }
     .tc-sit { text-align: center; }
     .tc-actions { display: flex; gap: 4px; justify-content: flex-end; }
+    .tc-obs {
+      font-size: 12px;
+      color: var(--ink-faint);
+      font-weight: 500;
+      margin-top: 3px;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 1;
+      -webkit-box-orient: vertical;
+    }
+
+    /* ---------- Ações da turma (Excel + PDF) ---------- */
+
+    .turma-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    /* ---------- Card de backup ---------- */
+
+    .backup-hint { font-size: 13px; color: var(--ink-mute); line-height: 1.55; font-weight: 500; }
+    .backup-acoes { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .backup-acoes .btn { flex: 1; }
 
     /* ---------- Rodapé ---------- */
 
@@ -1088,83 +1150,8 @@
     }
     .toast.show { opacity: 1; transform: translate(-50%, 0); }
     .toast svg { width: 15px; height: 15px; color: #4ade80; flex-shrink: 0; }
-
-    /* ---------- Template oculto do PDF (fundo branco) ---------- */
-
-    #pdf-container {
-      position: fixed;
-      left: -9999px;
-      top: 0;
-      width: 794px;
-      background: #ffffff;
-      color: #0f172a;
-      font-family: 'Inter', system-ui, sans-serif;
-      padding: 36px 40px;
-    }
-
-    #pdf-container .pdf-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-      border-bottom: 3px solid #c25210;
-      padding-bottom: 14px;
-      margin-bottom: 24px;
-    }
-    #pdf-container h1 { font-size: 24px; font-weight: 800; letter-spacing: -.01em; }
-    #pdf-container .pdf-sub { font-size: 13px; color: #64748b; margin-top: 3px; font-weight: 500; }
-    #pdf-container .pdf-meta { text-align: right; font-size: 12px; color: #64748b; line-height: 1.7; font-weight: 500; }
-
-    .pdf-aluno {
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      padding: 16px 18px;
-      margin-bottom: 18px;
-      page-break-inside: avoid;
-    }
-    .pdf-aluno-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      border-bottom: 1px solid #e2e8f0;
-      padding-bottom: 9px;
-      margin-bottom: 10px;
-    }
-    .pdf-aluno-head h3 { font-size: 16.5px; font-weight: 700; }
-    .pdf-aluno-head span {
-      font-size: 10.5px;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      color: #64748b;
-      font-weight: 700;
-    }
-
-    .pdf-aluno table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .pdf-aluno th {
-      font-size: 10px;
-      letter-spacing: .07em;
-      text-transform: uppercase;
-      color: #64748b;
-      text-align: center;
-      padding: 6px;
-      border-bottom: 1px solid #e2e8f0;
-      background: #f8fafc;
-      font-weight: 700;
-    }
-    .pdf-aluno th:first-child { text-align: left; }
-    .pdf-aluno td {
-      padding: 7px 6px;
-      border-bottom: 1px solid #f1f5f9;
-      text-align: center;
-      font-size: 12.5px;
-      font-variant-numeric: tabular-nums;
-      font-weight: 500;
-      color: #334155;
-    }
-    .pdf-aluno td.disc { text-align: left; font-weight: 600; color: #0f172a; }
-    .pdf-aluno td.sit { font-weight: 700; }
-    .pdf-geral { display: flex; justify-content: space-between; padding-top: 10px; font-size: 13.5px; font-weight: 700; }
-    .pdf-ok { color: #15803d; }
-    .pdf-warn { color: #dc2626; }
+    .toast.erro { border-color: rgba(248, 113, 113, .35); }
+    .toast.erro svg { color: #f87171; }
 
     /* ---------- Entrada suave das seções ---------- */
 
@@ -1290,8 +1277,9 @@
       table.notas-table td { padding: 0; border: none; }
       table.notas-table tr:last-child td { border-bottom: none; }
       table.notas-table td.disc { grid-column: 1 / -1; padding-bottom: 2px; white-space: normal; }
-      table.notas-table td.nota { width: auto; }
-      table.notas-table td.nota::before {
+      table.notas-table td.nota, table.notas-table td.falta { width: auto; }
+      table.notas-table td.falta { grid-column: 1 / -1; }
+      table.notas-table td.nota::before, table.notas-table td.falta::before {
         content: attr(data-label);
         display: block;
         text-align: center;
@@ -1302,7 +1290,7 @@
         color: var(--ink-faint);
         margin-bottom: 4px;
       }
-      .nota-input { width: 100%; padding: 10px 2px; font-weight: 700; }
+      .nota-input, .falta-input { width: 100%; padding: 10px 2px; font-weight: 700; }
     }
 
     /* Em tablets estreitos as 4 notas cabem lado a lado */
@@ -1323,6 +1311,8 @@
       .overline { font-size: 9px; letter-spacing: .12em; }
       .kpis { gap: 10px; }
       .turma-head .btn { width: 100%; }
+      .turma-acoes { width: 100%; }
+      .turma-acoes .btn { flex: 1; width: auto; }
       .form-foot { flex-direction: column; }
       .form-foot .btn { width: 100%; }
       .subject-title-row h2 { font-size: 22px; }
@@ -1453,15 +1443,20 @@
           <h2>Turma &amp; alunos</h2>
           <p>Cadastre alunos, lance as notas bimestrais de cada disciplina e exporte o boletim da turma.</p>
         </div>
-        <button class="btn btn-solid" onclick="gerarPDFTurma()">
-          <i data-lucide="file-down"></i> Baixar PDF da turma
-        </button>
+        <div class="turma-acoes">
+          <button class="btn" onclick="gerarXLSXTurma()" title="Planilha Excel formatada, com cores e resumo por disciplina">
+            <i data-lucide="file-spreadsheet"></i> Excel (.xlsx)
+          </button>
+          <button class="btn btn-solid" onclick="gerarPDFTurma()">
+            <i data-lucide="file-down"></i> Baixar PDF da turma
+          </button>
+        </div>
       </div>
 
       <div class="well">
         <div class="well-head">
           <h3 id="form-aluno-titulo"><i data-lucide="user-plus"></i> Novo aluno &amp; notas</h3>
-          <button id="btn-cancelar-edicao" class="mini-link hidden" onclick="cancelarEdicaoAluno()">cancelar edição</button>
+          <button id="btn-cancelar-edicao" class="mini-link hidden" onclick="cancelarEdicaoAluno('clique')">cancelar edição</button>
         </div>
 
         <input type="hidden" id="edit-aluno-id" value="">
@@ -1478,17 +1473,40 @@
                 <th style="width:74px">B2</th>
                 <th style="width:74px">B3</th>
                 <th style="width:74px">B4</th>
+                <th style="width:64px">Faltas</th>
               </tr>
             </thead>
             <tbody id="tbody-notas-aluno-form"></tbody>
           </table>
         </div>
 
+        <label class="label" for="aluno-obs-input">Observações (opcional)</label>
+        <textarea id="aluno-obs-input" class="field" rows="2" maxlength="300"
+                  placeholder="Ex.: acompanhamento em leitura, entrega de trabalhos, contato com a família…"
+                  style="margin-top:6px; width:100%; resize:vertical; min-height:58px"></textarea>
+
         <div class="form-foot">
+          <button class="btn btn-left" onclick="importarListaAlunos()" title="Cadastrar vários alunos de uma vez colando a lista">
+            <i data-lucide="clipboard-list"></i> Colar lista de alunos
+          </button>
           <button class="btn btn-solid" onclick="salvarAlunoComNotas()">
             <i data-lucide="save"></i> Salvar aluno
           </button>
         </div>
+      </div>
+
+      <div class="tlist-bar">
+        <div class="busca-wrap">
+          <i data-lucide="search"></i>
+          <input type="search" id="busca-aluno" class="field" placeholder="Buscar aluno pelo nome…" autocomplete="off" aria-label="Buscar aluno pelo nome">
+        </div>
+        <label class="visually-hidden" for="ordem-alunos">Ordenar alunos por</label>
+        <select id="ordem-alunos" class="field select-ordem" onchange="alterarOrdemAlunos(this.value)" aria-label="Ordenar alunos por">
+          <option value="az">A → Z</option>
+          <option value="za">Z → A</option>
+          <option value="media_desc">Maior média</option>
+          <option value="media_asc">Menor média</option>
+        </select>
       </div>
 
       <div class="tlist" id="turma-lista"></div>
@@ -1522,6 +1540,15 @@
             <p id="materia-status" class="status-line">Sem notas inseridas</p>
           </div>
           <div class="row-actions">
+            <button class="btn-icon" id="btn-mover-esq" onclick="moverMateria(-1)" title="Mover disciplina para a posição anterior" aria-label="Mover disciplina para a posição anterior">
+              <i data-lucide="chevron-left"></i>
+            </button>
+            <button class="btn-icon" id="btn-mover-dir" onclick="moverMateria(1)" title="Mover disciplina para a próxima posição" aria-label="Mover disciplina para a próxima posição">
+              <i data-lucide="chevron-right"></i>
+            </button>
+            <button class="btn-icon" onclick="duplicarMateriaAtual()" title="Duplicar disciplina" aria-label="Duplicar disciplina">
+              <i data-lucide="copy"></i>
+            </button>
             <button class="btn-icon" onclick="renomearMateriaAtual()" title="Renomear disciplina" aria-label="Renomear disciplina">
               <i data-lucide="pencil"></i>
             </button>
@@ -1585,6 +1612,22 @@
         </div>
       </div>
 
+      <div class="sheet pad">
+        <div class="sheet-head">
+          <span class="label label-icon"><i data-lucide="database-backup"></i> Dados &amp; backup</span>
+        </div>
+        <p class="backup-hint">Tudo fica salvo apenas neste navegador. Exporte um arquivo de backup para guardar uma cópia — ou para levar os dados para outro dispositivo.</p>
+        <div class="backup-acoes">
+          <button class="btn btn-small" onclick="exportarBackup()">
+            <i data-lucide="download"></i> Exportar backup
+          </button>
+          <button class="btn btn-small" onclick="importarBackupClique()">
+            <i data-lucide="upload"></i> Importar backup
+          </button>
+        </div>
+        <input type="file" id="input-backup" accept=".json,application/json" class="hidden" onchange="processarArquivoBackup(this)">
+      </div>
+
     </section>
   </main>
 
@@ -1593,21 +1636,6 @@
     <span>Os dados ficam salvos apenas neste navegador</span>
     <span>© <span id="ano-footer"></span></span>
   </footer>
-
-  <!-- Template oculto para o PDF da turma -->
-  <div id="pdf-container" aria-hidden="true">
-    <div class="pdf-head">
-      <div>
-        <h1 id="pdf-escola">Boletim da Turma</h1>
-        <p class="pdf-sub">Relatório de notas bimestrais por disciplina</p>
-      </div>
-      <div class="pdf-meta">
-        <p>Data: <span id="pdf-data">–</span></p>
-        <p>Média mínima: <span id="pdf-meta-escola">7,0</span></p>
-      </div>
-    </div>
-    <div id="pdf-conteudo-alunos"></div>
-  </div>
 
   <!-- Modal -->
   <div id="overlay" class="overlay hidden">
@@ -1630,7 +1658,7 @@
 
   <!-- Toast -->
   <div id="toast" class="toast" role="status">
-    <i data-lucide="check"></i>
+    <span id="toast-icone"><i data-lucide="check"></i></span>
     <span id="toast-msg">Mensagem</span>
   </div>
 
@@ -1643,6 +1671,8 @@
     const LEGACY_KEY  = 'liquid_calc_school_data_v4';
 
     const DEFAULT_STATE = {
+      versao: 1,          // versão do formato salvo — facilita migrações futuras
+      ordemAlunos: 'az',  // 'az' | 'za' | 'media_desc' | 'media_asc'
       escola: '',
       mediaMinima: 7.0,
       activeId: 'm1',
@@ -1665,6 +1695,12 @@
       return String(s ?? '')
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    // (Re)cria os ícones lucide apenas se a biblioteca carregou — sem quebrar
+    // o app quando o CDN está indisponível (modo offline, rede bloqueada etc.)
+    function atualizarIcones() {
+      if (window.lucide) lucide.createIcons();
     }
 
     // 8.5 | 8,5 → 8.5 ; inválido/vazio → null
@@ -1708,6 +1744,7 @@
             const old = JSON.parse(legado);
             appData = { ...clonar(DEFAULT_STATE), ...old };
             appData.escola = '';
+            appData.versao = 1;
             const idPorNome = {};
             appData.materias.forEach(m => { idPorNome[m.nome] = m.id; });
             appData.alunos = (appData.alunos || []).map(a => {
@@ -1722,35 +1759,88 @@
         }
       }
 
-      // Saneamento
+      sanearDados();
+    }
+
+    // Valida e completa os dados do app (usado ao carregar E ao importar backup)
+    function sanearDados() {
       if (!Array.isArray(appData.materias) || appData.materias.length === 0) {
         appData.materias = clonar(DEFAULT_STATE.materias);
       }
+      const idsMat = new Set();
       appData.materias.forEach(m => {
+        if (!m.id) m.id = 'm_' + Math.random().toString(36).slice(2, 9);
+        idsMat.add(m.id);
+        if (typeof m.nome !== 'string' || !m.nome.trim()) m.nome = 'Disciplina';
         if (!Array.isArray(m.notas) || m.notas.length !== 4) m.notas = [null, null, null, null];
         m.notas = m.notas.map(n => (typeof n === 'number' && !isNaN(n)) ? Math.min(10, Math.max(0, n)) : null);
       });
       if (!Array.isArray(appData.alunos)) appData.alunos = [];
+      appData.alunos.forEach(a => {
+        if (!a.id) a.id = 'aluno_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+        if (typeof a.nome !== 'string' || !a.nome.trim()) a.nome = 'Sem nome';
+        if (!a.boletim || typeof a.boletim !== 'object') a.boletim = {};
+        Object.keys(a.boletim).forEach(k => {
+          if (!idsMat.has(k)) { delete a.boletim[k]; return; }
+          const arr = a.boletim[k];
+          if (!Array.isArray(arr) || arr.length !== 4) { a.boletim[k] = [null, null, null, null]; return; }
+          a.boletim[k] = arr.map(n => (typeof n === 'number' && !isNaN(n)) ? Math.min(10, Math.max(0, n)) : null);
+        });
+        if (typeof a.obs !== 'string') a.obs = '';
+        if (!a.faltas || typeof a.faltas !== 'object') a.faltas = {};
+        Object.keys(a.faltas).forEach(k => {
+          const v = parseInt(a.faltas[k], 10);
+          if (!idsMat.has(k) || !Number.isFinite(v) || v <= 0) delete a.faltas[k];
+          else a.faltas[k] = Math.min(999, v);
+        });
+      });
       if (typeof appData.escola !== 'string') appData.escola = '';
       if (typeof appData.mediaMinima !== 'number' || isNaN(appData.mediaMinima)) appData.mediaMinima = 7.0;
       appData.mediaMinima = Math.min(10, Math.max(0, appData.mediaMinima));
+      if (typeof appData.versao !== 'number') appData.versao = 1;
+      if (!['az', 'za', 'media_desc', 'media_asc'].includes(appData.ordemAlunos)) appData.ordemAlunos = 'az';
       if (!appData.materias.some(m => m.id === appData.activeId)) {
         appData.activeId = appData.materias[0].id;
       }
     }
 
+    // Gravação com debounce: digitar não escreve no localStorage a cada tecla.
+    let salvarTimer = null;
+    let avisouFalhaSalvar = false;
+
+    function gravarAgora() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+        avisouFalhaSalvar = false;
+      } catch (e) {
+        // Cota cheia / armazenamento indisponível — avisa uma vez só, sem repetir
+        if (!avisouFalhaSalvar) {
+          avisouFalhaSalvar = true;
+          mostrarToast('Atenção: não foi possível salvar os dados neste navegador.', 'erro');
+        }
+      }
+    }
+
     function salvarDados() {
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); }
-      catch (e) { /* armazenamento indisponível — mantém os dados só na sessão */ }
+      clearTimeout(salvarTimer);
+      salvarTimer = setTimeout(gravarAgora, 300);
+    }
+
+    function salvarAgora() {
+      clearTimeout(salvarTimer);
+      gravarAgora();
     }
 
     /* ---------- Sistema de modais ---------- */
 
     let modalCtx = null;
+    let focoAnteriorModal = null; // devolve o foco ao fechar (acessibilidade)
+    let alunoFormSujo = false;    // há alterações não salvas no formulário do aluno?
 
     function abrirModal(opts) {
       return new Promise(resolve => {
         modalCtx = { ...opts, resolve };
+        focoAnteriorModal = document.activeElement;
         document.getElementById('modal-titulo').textContent = opts.titulo;
         document.getElementById('modal-corpo').innerHTML = opts.corpo;
 
@@ -1761,8 +1851,14 @@
 
         const overlay = document.getElementById('overlay');
         overlay.classList.remove('hidden');
+
         const input = document.getElementById('modal-input');
-        if (input) { input.focus(); input.select && input.select(); }
+        if (input) {
+          input.focus();
+          input.select && input.select();
+        } else {
+          ok.focus(); // confirmação sem campo de texto: foco direto na ação principal
+        }
       });
     }
 
@@ -1771,6 +1867,11 @@
       const resolve = modalCtx.resolve;
       modalCtx = null;
       document.getElementById('overlay').classList.add('hidden');
+      // Devolve o foco ao elemento que abriu o modal
+      if (focoAnteriorModal && document.documentElement.contains(focoAnteriorModal)) {
+        focoAnteriorModal.focus();
+      }
+      focoAnteriorModal = null;
       resolve(valor);
     }
 
@@ -1790,6 +1891,13 @@
 
       if (modalCtx.tipo === 'confirm') { concluirModal(true); return; }
 
+      if (modalCtx.tipo === 'lote') {
+        const area = document.getElementById('modal-lote');
+        if (!area.value.trim()) { area.classList.add('invalid'); area.focus(); return; }
+        concluirModal(area.value);
+        return;
+      }
+
       if (modalCtx.tipo === 'texto' && modalCtx.obrigatorio && input.value.trim() === '') {
         input.classList.add('invalid'); input.focus(); return;
       }
@@ -1801,7 +1909,59 @@
     });
 
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape' && modalCtx) fecharModal();
+      if (e.key === 'Escape' && modalCtx) { fecharModal(); return; }
+
+      // Enter pula para o próximo campo de nota (e normaliza ao sair do último)
+      if (e.key === 'Enter' && e.target instanceof HTMLInputElement) {
+        const alvo = e.target;
+
+        if (alvo.classList.contains('grade-input')) {
+          e.preventDefault();
+          const proximo = document.getElementById(`input-b${parseInt(alvo.id.slice(-1), 10) + 1}`);
+          if (proximo) { proximo.focus(); proximo.select(); }
+          else alvo.blur();
+          return;
+        }
+
+        if (alvo.classList.contains('nota-input')) {
+          const linha = alvo.closest('tr');
+          const entradas = linha ? Array.from(linha.querySelectorAll('.nota-input')) : [];
+          const i = entradas.indexOf(alvo);
+          if (i > -1 && i < entradas.length - 1) {
+            e.preventDefault();
+            entradas[i + 1].focus();
+            entradas[i + 1].select();
+          } else {
+            alvo.blur();
+          }
+          return;
+        }
+      }
+
+      // Focus trap: com o modal aberto, o Tab circula apenas dentro dele
+      if (e.key === 'Tab' && modalCtx) {
+        const focaveis = Array.from(
+          document.querySelectorAll('#overlay button, #overlay input, #overlay select, #overlay textarea, #overlay [tabindex]:not([tabindex="-1"])')
+        ).filter(el => !el.disabled && el.offsetParent !== null);
+
+        if (focaveis.length === 0) return;
+        const primeiro = focaveis[0];
+        const ultimo = focaveis[focaveis.length - 1];
+
+        if (e.shiftKey && document.activeElement === primeiro) { e.preventDefault(); ultimo.focus(); }
+        else if (!e.shiftKey && document.activeElement === ultimo) { e.preventDefault(); primeiro.focus(); }
+      }
+    });
+
+    // O campo sai do estado de erro assim que o usuário começa a corrigi-lo;
+    // também marca o formulário do aluno como "sujo" ao digitar
+    document.addEventListener('input', e => {
+      const alvo = e.target;
+      if (alvo.classList && alvo.classList.contains('invalid')) alvo.classList.remove('invalid');
+      if (alvo.id === 'aluno-nome-input' || alvo.id === 'aluno-obs-input' ||
+          (alvo.classList && (alvo.classList.contains('aluno-nota-input') || alvo.classList.contains('aluno-falta-input')))) {
+        alunoFormSujo = true;
+      }
     });
 
     function pedirTextoP({ titulo, label, valor = '', placeholder = '', okLabel = 'Salvar', obrigatorio = true }) {
@@ -1843,7 +2003,7 @@
       if (!btn) return;
       const escuro = document.documentElement.getAttribute('data-theme') === 'dark';
       btn.innerHTML = `<i data-lucide="${escuro ? 'sun' : 'moon'}"></i>`;
-      lucide.createIcons();
+      atualizarIcones();
     }
 
     function alternarTema() {
@@ -1855,9 +2015,9 @@
       mostrarToast(novo === 'dark' ? 'Tema escuro ativado.' : 'Tema claro ativado.');
     }
 
-    /* ---------- Abas: arraste com o mouse/caneta.
+    /* ---------- Abas: arraste com o mouse/caneta OU clique/toque.
        No celular o "empurrar pro lado" fica com a rolagem nativa,
-       que já traz inércia e é mais fluida. ---------- */
+       que já traz inércia e é mais fluida; o toque seleciona a matéria. ---------- */
 
     function atualizarFadesAba() {
       const el = document.getElementById('materia-tabs');
@@ -1887,8 +2047,9 @@
       if (!el || el.dataset.arrasteOk) return;
       el.dataset.arrasteOk = '1';
 
-      let pressionado = false, moveu = false;
-      let x0 = 0, y0 = 0, scroll0 = 0, ux = 0, ut = 0, vel = 0, raf = null;
+      const LIMITE = 6;   // px de movimento até virar "arraste" (abaixo disso é clique)
+      let pressionado = false, moveu = false, capturou = false;
+      let x0 = 0, scroll0 = 0, ux = 0, ut = 0, vel = 0, raf = null;
 
       const pararInercia = () => { if (raf) { cancelAnimationFrame(raf); raf = null; } };
 
@@ -1906,34 +2067,33 @@
       el.addEventListener('scroll', atualizarFadesAba, { passive: true });
 
       el.addEventListener('pointerdown', e => {
-        // Toque no celular: usa a rolagem nativa (mais fluida, com inércia).
-        // Mouse/pen: arraste manualmente, pois não existe arraste nativo.
+        // Toque no celular: rolagem nativa (com inércia) + clique normal do botão.
+        // Mouse/caneta: arraste manual.
         if (e.pointerType !== 'mouse' && e.pointerType !== 'pen') return;
+        if (e.button !== 0) return;
         pararInercia();
         pressionado = true;
         moveu = false;
+        capturou = false;
         x0 = e.clientX;
-        y0 = e.clientY;
         scroll0 = el.scrollLeft;
         ux = e.clientX;
         ut = e.timeStamp;
         vel = 0;
-        try { el.setPointerCapture(e.pointerId); } catch (err) { /* captura opcional */ }
+        // IMPORTANTE: NÃO capturar o ponteiro aqui. Capturar no pointerdown faz o
+        // navegador entregar o "click" ao container e não ao botão da aba, e por
+        // isso clicar na matéria não fazia nada. A captura só começa ao arrastar.
       });
 
       el.addEventListener('pointermove', e => {
         if (!pressionado) return;
         const dx = e.clientX - x0;
-        const dy = e.clientY - y0;
 
         if (!moveu) {
-          if (Math.abs(dx) < 6) return;                       // ainda é um "toque"
-          if (e.pointerType === 'touch' && Math.abs(dy) > Math.abs(dx)) {
-            pressionado = false;                              // gesto vertical → deixa a página rolar
-            return;
-          }
+          if (Math.abs(dx) < LIMITE) return;            // ainda é um clique
           moveu = true;
           el.classList.add('arrastando');
+          try { el.setPointerCapture(e.pointerId); capturou = true; } catch (err) { /* opcional */ }
         }
 
         el.scrollLeft = scroll0 - dx;
@@ -1948,8 +2108,15 @@
         if (!pressionado) return;
         pressionado = false;
         el.classList.remove('arrastando');
+        if (capturou) {
+          try { el.releasePointerCapture(e.pointerId); } catch (err) { /* ignora */ }
+          capturou = false;
+        }
         if (e.type === 'pointercancel') { moveu = false; return; }
         if (moveu && Math.abs(vel) > .25) raf = requestAnimationFrame(rodarInercia);
+        // Se foi arraste, o "click" que vem logo depois é ignorado; o flag é
+        // zerado em seguida para nunca "engolir" o próximo clique de verdade.
+        if (moveu) setTimeout(() => { moveu = false; }, 0);
       };
       el.addEventListener('pointerup', soltar);
       el.addEventListener('pointercancel', soltar);
@@ -1958,6 +2125,9 @@
       el.addEventListener('click', e => {
         if (moveu) { e.stopPropagation(); e.preventDefault(); moveu = false; }
       }, true);
+
+      // Evita o "arrastar fantasma" nativo de texto/elementos dentro das abas
+      el.addEventListener('dragstart', e => e.preventDefault());
 
       atualizarFadesAba();
     }
@@ -1976,7 +2146,7 @@
         titulo: 'Nome da escola',
         label: 'Aparece no cabeçalho e no PDF da turma',
         valor: appData.escola,
-        placeholder: 'Ex.: E.E. Governador Mário Covas',
+        placeholder: 'Ex.: E.M. Governador Mário Covas',
         okLabel: 'Salvar',
         obrigatorio: false
       });
@@ -1995,7 +2165,10 @@
       secao.classList.toggle('hidden');
       document.getElementById('btn-turma').classList.toggle('btn-solid', !vaiAbrir);
       if (vaiAbrir) {
-        renderFormularioNotas();
+        // Se havia uma edição de aluno em andamento, preserva o formulário dela
+        const idEdicao = document.getElementById('edit-aluno-id').value;
+        const alunoEmEdicao = idEdicao ? appData.alunos.find(a => a.id === idEdicao) : null;
+        renderFormularioNotas(alunoEmEdicao || null);
         renderListaTurma();
         secao.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
@@ -2052,6 +2225,7 @@
         document.getElementById(`input-b${i}`).value = (val !== null && val !== undefined) ? fmt(val) : '';
       }
       atualizarCalculos();
+      atualizarBotoesMover();
     }
 
     function salvarECalcular() {
@@ -2132,9 +2306,9 @@
         okLabel: 'Criar'
       });
       if (nome === null) return;
-      if (!nome) { mostrarToast('Informe um nome para a disciplina.'); return; }
+      if (!nome) { mostrarToast('Informe um nome para a disciplina.', 'erro'); return; }
       if (appData.materias.some(m => m.nome.toLowerCase() === nome.toLowerCase())) {
-        mostrarToast('Já existe uma disciplina com esse nome.');
+        mostrarToast('Já existe uma disciplina com esse nome.', 'erro');
         return;
       }
       const novoId = 'm_' + Date.now();
@@ -2169,7 +2343,7 @@
 
     async function excluirMateriaAtual() {
       if (appData.materias.length <= 1) {
-        mostrarToast('Mantenha ao menos uma disciplina na lista.');
+        mostrarToast('Mantenha ao menos uma disciplina na lista.', 'erro');
         return;
       }
       const mat = getMateriaAtiva();
@@ -2191,6 +2365,33 @@
       mostrarToast('Disciplina removida.');
     }
 
+    /* ---------- Disciplinas: reordenação ---------- */
+
+    function moverMateria(direcao) {
+      const i = appData.materias.findIndex(m => m.id === appData.activeId);
+      const j = i + direcao;
+      if (i < 0 || j < 0 || j >= appData.materias.length) return;
+
+      const nomeMovida = appData.materias[i].nome;
+      [appData.materias[i], appData.materias[j]] = [appData.materias[j], appData.materias[i]];
+
+      salvarDados();
+      renderTabs();
+      renderSituacao();          // o gráfico segue a nova ordem
+      renderFormularioNotas();   // a tabela de notas da turma também
+      renderListaTurma();
+      atualizarBotoesMover();
+      mostrarToast(`"${nomeMovida}" movida.`);
+    }
+
+    function atualizarBotoesMover() {
+      const i = appData.materias.findIndex(m => m.id === appData.activeId);
+      const btnEsq = document.getElementById('btn-mover-esq');
+      const btnDir = document.getElementById('btn-mover-dir');
+      if (btnEsq) btnEsq.disabled = i <= 0;
+      if (btnDir) btnDir.disabled = i < 0 || i >= appData.materias.length - 1;
+    }
+
     function limparCamposMateria() {
       const mat = getMateriaAtiva();
       mat.notas = [null, null, null, null];
@@ -2199,6 +2400,515 @@
       renderTabs();
       renderSituacao();
       mostrarToast('Notas desta disciplina limpas.');
+    }
+
+    /* ---------- Disciplinas: duplicação (item extra 8) ---------- */
+
+    async function duplicarMateriaAtual() {
+      const mat = getMateriaAtiva();
+      const novoNome = await pedirTextoP({
+        titulo: 'Duplicar disciplina',
+        label: 'Nome da cópia — os alunos começam sem notas nela',
+        valor: mat.nome + ' (cópia)',
+        okLabel: 'Duplicar'
+      });
+      if (novoNome === null) return;
+      if (!novoNome) { mostrarToast('Informe um nome para a cópia.', 'erro'); return; }
+      if (appData.materias.some(m => m.nome.toLowerCase() === novoNome.toLowerCase())) {
+        mostrarToast('Já existe uma disciplina com esse nome.', 'erro');
+        return;
+      }
+      const novoId = 'm_' + Date.now();
+      const i = appData.materias.findIndex(m => m.id === mat.id);
+      appData.materias.splice(i + 1, 0, { id: novoId, nome: novoNome, notas: clonar(mat.notas) });
+      appData.activeId = novoId;
+      salvarDados();
+      renderTabs();
+      carregarMateriaAtiva();
+      renderSituacao();
+      renderFormularioNotas();
+      renderListaTurma();
+      atualizarBotoesMover();
+      mostrarToast(`"${mat.nome}" duplicada como "${novoNome}".`);
+    }
+
+    /* ---------- Turma: cadastro em lote (item extra 3) ---------- */
+
+    function nomeChave(s) {
+      return String(s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    }
+
+    async function importarListaAlunos() {
+      const texto = await abrirModal({
+        titulo: 'Cadastrar vários alunos',
+        okLabel: 'Cadastrar',
+        tipo: 'lote',
+        corpo: `
+          <label class="label" for="modal-lote">Cole a lista — um nome por linha</label>
+          <textarea id="modal-lote" class="field" rows="8" autocomplete="off"
+                    placeholder="Ana Silva&#10;Bruno Costa&#10;Carla Dias"
+                    style="margin-top:6px; width:100%; resize:vertical; min-height:150px"></textarea>
+          <p class="modal-hint">Nomes já cadastrados (ou repetidos na própria lista) são ignorados automaticamente.</p>`
+      });
+      if (texto === null) return;
+
+      const existentes = new Set(appData.alunos.map(a => nomeChave(a.nome)));
+      const vistos = new Set();
+      let criados = 0, ignorados = 0;
+
+      texto.split(/\r?\n/).forEach(linha => {
+        const nome = linha.trim().replace(/\s+/g, ' ');
+        if (!nome) return;
+        const chave = nomeChave(nome);
+        if (existentes.has(chave) || vistos.has(chave)) { ignorados++; return; }
+        vistos.add(chave);
+        appData.alunos.push({
+          id: 'aluno_' + Date.now() + '_' + criados,
+          nome,
+          boletim: {},
+          faltas: {},
+          obs: ''
+        });
+        criados++;
+      });
+
+      if (criados > 0) {
+        salvarDados();
+        renderListaTurma();
+        mostrarToast(`${criados} aluno${criados > 1 ? 's' : ''} cadastrado${criados > 1 ? 's' : ''}` +
+          (ignorados > 0 ? ` · ${ignorados} duplicado${ignorados > 1 ? 's' : ''} ignorado${ignorados > 1 ? 's' : ''}.` : '.'));
+      } else {
+        mostrarToast('Nenhum nome novo para cadastrar.', 'erro');
+      }
+    }
+
+    function baixarArquivo(conteudo, tipo, nome) {
+      const blob = new Blob([conteudo], { type: tipo });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = nome;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    /* ---------- Exportar planilha Excel (.xlsx) formatada ---------- */
+    // Gera um .xlsx de verdade (com cores, células mescladas, cabeçalho congelado e
+    // larguras ajustadas), sem depender de nenhuma biblioteca externa.
+
+    const XLSX_PALETA = [
+      { d: '1D4ED8', l: 'DBEAFE' }, { d: '0F766E', l: 'CCFBF1' },
+      { d: '7E22CE', l: 'F3E8FF' }, { d: 'C2410C', l: 'FFEDD5' },
+      { d: 'BE185D', l: 'FCE7F3' }, { d: '15803D', l: 'DCFCE7' },
+      { d: '4338CA', l: 'E0E7FF' }, { d: 'B45309', l: 'FEF3C7' }
+    ];
+
+    function xlsxColuna(n) {
+      let s = ''; n++;
+      while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); }
+      return s;
+    }
+
+    function xlsxEsc(s) {
+      return String(s)
+        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    const XLSX_CRC_TAB = (() => {
+      const t = new Uint32Array(256);
+      for (let n = 0; n < 256; n++) {
+        let c = n;
+        for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+        t[n] = c >>> 0;
+      }
+      return t;
+    })();
+
+    function xlsxCrc(bytes) {
+      let c = 0xFFFFFFFF;
+      for (let i = 0; i < bytes.length; i++) c = XLSX_CRC_TAB[(c ^ bytes[i]) & 255] ^ (c >>> 8);
+      return (c ^ 0xFFFFFFFF) >>> 0;
+    }
+
+    // ZIP sem compressão (suficiente e válido para .xlsx)
+    function xlsxZip(arquivos) {
+      const enc = new TextEncoder();
+      const u16 = v => [v & 255, (v >> 8) & 255];
+      const u32 = v => [v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255];
+      const locais = [], centrais = [];
+      let offset = 0;
+      arquivos.forEach(a => {
+        const nome = enc.encode(a.nome);
+        const dados = enc.encode(a.conteudo);
+        const crc = xlsxCrc(dados), tam = dados.length;
+        const local = new Uint8Array([
+          0x50, 0x4B, 3, 4, ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21),
+          ...u32(crc), ...u32(tam), ...u32(tam), ...u16(nome.length), ...u16(0), ...nome
+        ]);
+        locais.push(local, dados);
+        centrais.push(new Uint8Array([
+          0x50, 0x4B, 1, 2, ...u16(20), ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21),
+          ...u32(crc), ...u32(tam), ...u32(tam), ...u16(nome.length), ...u16(0), ...u16(0),
+          ...u16(0), ...u16(0), ...u32(0), ...u32(offset), ...nome
+        ]));
+        offset += local.length + dados.length;
+      });
+      const tamCentral = centrais.reduce((s, p) => s + p.length, 0);
+      const fim = new Uint8Array([
+        0x50, 0x4B, 5, 6, ...u16(0), ...u16(0), ...u16(arquivos.length), ...u16(arquivos.length),
+        ...u32(tamCentral), ...u32(offset), ...u16(0)
+      ]);
+      const partes = [...locais, ...centrais, fim];
+      const total = partes.reduce((s, p) => s + p.length, 0);
+      const saida = new Uint8Array(total);
+      let pos = 0;
+      partes.forEach(p => { saida.set(p, pos); pos += p.length; });
+      return saida;
+    }
+
+    function xlsxEstilos() {
+      const fontes = ['<font><sz val="11"/><name val="Calibri"/></font>'];
+      const fills = ['<fill><patternFill patternType="none"/></fill>', '<fill><patternFill patternType="gray125"/></fill>'];
+      const bordas = ['<border><left/><right/><top/><bottom/><diagonal/></border>'];
+      const formatos = {};
+      const xfs = ['<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'];
+      const cache = {};
+      const idx = (arr, x) => { let i = arr.indexOf(x); if (i < 0) { arr.push(x); i = arr.length - 1; } return i; };
+
+      function estilo(o) {
+        const k = JSON.stringify(o);
+        if (cache[k] !== undefined) return cache[k];
+        const f = idx(fontes, `<font>${o.b ? '<b/>' : ''}${o.i ? '<i/>' : ''}<sz val="${o.sz || 11}"/><color rgb="FF${o.fg || '1E293B'}"/><name val="Calibri"/></font>`);
+        const fl = o.bg ? idx(fills, `<fill><patternFill patternType="solid"><fgColor rgb="FF${o.bg}"/><bgColor indexed="64"/></patternFill></fill>`) : 0;
+        let bd = 0;
+        if (o.borda !== false) {
+          const c = `<color rgb="FF${o.bc || 'CBD5E1'}"/>`;
+          bd = idx(bordas, `<border><left style="thin">${c}</left><right style="thin">${c}</right><top style="thin">${c}</top><bottom style="thin">${c}</bottom><diagonal/></border>`);
+        }
+        let nf = 0;
+        if (o.nf === '0') nf = 1;
+        else if (o.nf) {
+          if (!formatos[o.nf]) formatos[o.nf] = 164 + Object.keys(formatos).length;
+          nf = formatos[o.nf];
+        }
+        xfs.push(`<xf numFmtId="${nf}" fontId="${f}" fillId="${fl}" borderId="${bd}" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="${o.h || 'center'}" vertical="center"${o.wrap ? ' wrapText="1"' : ''}/></xf>`);
+        cache[k] = xfs.length - 1;
+        return cache[k];
+      }
+
+      function xml() {
+        const nfs = Object.entries(formatos);
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+          '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+          (nfs.length ? `<numFmts count="${nfs.length}">${nfs.map(([c, id]) => `<numFmt numFmtId="${id}" formatCode="${xlsxEsc(c)}"/>`).join('')}</numFmts>` : '') +
+          `<fonts count="${fontes.length}">${fontes.join('')}</fonts>` +
+          `<fills count="${fills.length}">${fills.join('')}</fills>` +
+          `<borders count="${bordas.length}">${bordas.join('')}</borders>` +
+          '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+          `<cellXfs count="${xfs.length}">${xfs.join('')}</cellXfs>` +
+          '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
+          '</styleSheet>';
+      }
+      return { estilo, xml };
+    }
+
+    function xlsxPlanilha() {
+      const linhas = {}, merges = [], alturas = {};
+      let maxL = 0, maxC = 0;
+      function set(r, c, v, s) {
+        (linhas[r] = linhas[r] || {})[c] = { v, s };
+        if (r > maxL) maxL = r;
+        if (c > maxC) maxC = c;
+      }
+      function mesclar(r1, c1, r2, c2, s, v) {
+        for (let r = r1; r <= r2; r++) for (let c = c1; c <= c2; c++) set(r, c, (r === r1 && c === c1) ? v : null, s);
+        if (r1 !== r2 || c1 !== c2) merges.push(`${xlsxColuna(c1)}${r1 + 1}:${xlsxColuna(c2)}${r2 + 1}`);
+      }
+      function xml(opc) {
+        const linhasXml = Object.keys(linhas).map(Number).sort((a, b) => a - b).map(r => {
+          const cels = Object.keys(linhas[r]).map(Number).sort((a, b) => a - b).map(c => {
+            const { v, s } = linhas[r][c];
+            const ref = `${xlsxColuna(c)}${r + 1}`;
+            if (v === null || v === undefined || v === '') return `<c r="${ref}" s="${s}"/>`;
+            if (typeof v === 'number' && isFinite(v)) return `<c r="${ref}" s="${s}"><v>${v}</v></c>`;
+            return `<c r="${ref}" s="${s}" t="inlineStr"><is><t xml:space="preserve">${xlsxEsc(v)}</t></is></c>`;
+          }).join('');
+          const h = alturas[r] ? ` ht="${alturas[r]}" customHeight="1"` : '';
+          return `<row r="${r + 1}"${h}>${cels}</row>`;
+        }).join('');
+
+        const cg = opc.congelar;
+        const topLeft = cg ? `${xlsxColuna(cg.col)}${cg.lin + 1}` : '';
+        const painel = cg
+          ? `<pane xSplit="${cg.col}" ySplit="${cg.lin}" topLeftCell="${topLeft}" activePane="bottomRight" state="frozen"/>` +
+            `<selection pane="topRight"/><selection pane="bottomLeft"/><selection pane="bottomRight" activeCell="${topLeft}" sqref="${topLeft}"/>`
+          : '';
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+          '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+          '<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>' +
+          `<dimension ref="A1:${xlsxColuna(maxC)}${maxL + 1}"/>` +
+          `<sheetViews><sheetView showGridLines="0" workbookViewId="0"${opc.ativa ? ' tabSelected="1"' : ''}>${painel}</sheetView></sheetViews>` +
+          '<sheetFormatPr defaultRowHeight="20"/>' +
+          `<cols>${opc.larguras.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('')}</cols>` +
+          `<sheetData>${linhasXml}</sheetData>` +
+          (merges.length ? `<mergeCells count="${merges.length}">${merges.map(m => `<mergeCell ref="${m}"/>`).join('')}</mergeCells>` : '') +
+          '<pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/>' +
+          '<pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/>' +
+          '</worksheet>';
+      }
+      return { set, mesclar, alturas, xml };
+    }
+
+    function gerarXLSXTurma() {
+      if (appData.alunos.length === 0) {
+        mostrarToast('Cadastre pelo menos um aluno para exportar a planilha.', 'erro');
+        return;
+      }
+
+      const meta = appData.mediaMinima;
+      const materias = appData.materias;
+      const X = xlsxEstilos();
+      const e = X.estilo;
+      const hoje = new Date().toLocaleDateString('pt-BR');
+      const media = arr => {
+        const v = arr.filter(x => typeof x === 'number' && isFinite(x));
+        return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+      };
+      const corNota = (v, extra = {}) => v < meta
+        ? { bg: 'FEE2E2', fg: '991B1B', ...extra }
+        : { bg: 'DCFCE7', fg: '166534', ...extra };
+
+      /* ===== Aba 1: Boletim da turma ===== */
+      const S1 = xlsxPlanilha();
+      const nCols = 1 + 6 * materias.length + 4;
+      const colMG = 1 + 6 * materias.length; // coluna da média geral
+      const ESC = '1E293B';
+
+      S1.mesclar(0, 0, 0, nCols - 1, e({ bg: ESC, fg: 'FFFFFF', b: 1, sz: 18, h: 'left', borda: false }), '  Boletim da Turma');
+      S1.mesclar(1, 0, 1, nCols - 1, e({ bg: 'E2E8F0', fg: '475569', sz: 11, h: 'left', borda: false }),
+        `  Gerado em ${hoje}   ·   Média mínima: ${fmt(meta)}   ·   ${appData.alunos.length} aluno${appData.alunos.length > 1 ? 's' : ''}   ·   ${materias.length} disciplina${materias.length > 1 ? 's' : ''}`);
+      S1.alturas[0] = 36; S1.alturas[1] = 22; S1.alturas[2] = 8; S1.alturas[3] = 30; S1.alturas[4] = 22;
+
+      const stCab = e({ bg: ESC, fg: 'FFFFFF', b: 1, sz: 12, bc: 'FFFFFF', wrap: 1 });
+      S1.mesclar(3, 0, 4, 0, e({ bg: ESC, fg: 'FFFFFF', b: 1, sz: 12, bc: 'FFFFFF', h: 'left' }), '  Aluno');
+      materias.forEach((m, i) => {
+        const cor = XLSX_PALETA[i % XLSX_PALETA.length];
+        const c0 = 1 + i * 6;
+        S1.mesclar(3, c0, 3, c0 + 5, e({ bg: cor.d, fg: 'FFFFFF', b: 1, sz: 12, bc: 'FFFFFF', wrap: 1 }), m.nome);
+        ['B1', 'B2', 'B3', 'B4', 'Média', 'Faltas'].forEach((t, k) =>
+          S1.set(4, c0 + k, t, e({ bg: cor.l, fg: cor.d, b: 1, bc: 'FFFFFF' })));
+      });
+      ['Média geral', 'Situação', 'Abaixo da meta', 'Observações'].forEach((t, k) =>
+        S1.mesclar(3, colMG + k, 4, colMG + k, stCab, t));
+
+      const acum = materias.map(() => ({ n: [[], [], [], []], med: [], falt: [] }));
+      const gerais = [];
+      let aprovados = 0, comNotas = 0;
+
+      appData.alunos.forEach((aluno, i) => {
+        const r = 5 + i;
+        const zebra = i % 2 ? 'F8FAFC' : 'FFFFFF';
+        const { geral, qtd, abaixo } = mediaDoAluno(aluno);
+        S1.set(r, 0, aluno.nome, e({ bg: zebra, b: 1, h: 'left' }));
+
+        materias.forEach((m, mi) => {
+          const c0 = 1 + mi * 6;
+          const n = (aluno.boletim && aluno.boletim[m.id]) || [null, null, null, null];
+          for (let k = 0; k < 4; k++) {
+            const v = (typeof n[k] === 'number' && isFinite(n[k])) ? n[k] : null;
+            if (v === null) S1.set(r, c0 + k, null, e({ bg: zebra }));
+            else { S1.set(r, c0 + k, v, e({ ...corNota(v), nf: '0.0' })); acum[mi].n[k].push(v); }
+          }
+          const md = calcularMedia(n);
+          if (md === null) S1.set(r, c0 + 4, null, e({ bg: zebra }));
+          else { S1.set(r, c0 + 4, Math.round(md * 100) / 100, e({ ...corNota(md, { b: 1 }), nf: '0.00' })); acum[mi].med.push(md); }
+          const fl = Number(aluno.faltas && aluno.faltas[m.id]) || 0;
+          S1.set(r, c0 + 5, fl, e({ bg: zebra, fg: fl > 0 ? 'B45309' : '94A3B8', b: fl > 0 ? 1 : 0, nf: '0' }));
+          acum[mi].falt.push(fl);
+        });
+
+        if (geral === null) S1.set(r, colMG, null, e({ bg: zebra }));
+        else { S1.set(r, colMG, Math.round(geral * 100) / 100, e({ ...corNota(geral, { b: 1, sz: 12 }), nf: '0.00' })); gerais.push(geral); }
+
+        let sit = 'Sem notas', stSit = { bg: 'E2E8F0', fg: '475569', b: 1 };
+        if (geral !== null) {
+          comNotas++;
+          if (geral >= meta) { sit = 'Aprovado'; stSit = { bg: '16A34A', fg: 'FFFFFF', b: 1 }; aprovados++; }
+          else { sit = 'Atenção'; stSit = { bg: 'DC2626', fg: 'FFFFFF', b: 1 }; }
+        }
+        S1.set(r, colMG + 1, sit, e(stSit));
+        S1.set(r, colMG + 2, qtd > 0 ? `${abaixo} de ${qtd}` : '',
+          e({ bg: zebra, fg: abaixo > 0 ? '991B1B' : '475569', b: abaixo > 0 ? 1 : 0 }));
+        S1.set(r, colMG + 3, aluno.obs || '', e({ bg: zebra, h: 'left', wrap: 1, fg: '475569' }));
+      });
+
+      // Rodapé: médias da turma
+      const rf = 5 + appData.alunos.length;
+      S1.alturas[rf] = 26;
+      S1.set(rf, 0, 'Média da turma', e({ bg: ESC, fg: 'FFFFFF', b: 1, h: 'left', bc: 'FFFFFF' }));
+      materias.forEach((m, mi) => {
+        const c0 = 1 + mi * 6;
+        const cor = XLSX_PALETA[mi % XLSX_PALETA.length];
+        for (let k = 0; k < 5; k++) {
+          const v = media(k < 4 ? acum[mi].n[k] : acum[mi].med);
+          S1.set(rf, c0 + k, v === null ? null : Math.round(v * 100) / 100,
+            e(v === null ? { bg: cor.l, bc: 'FFFFFF' } : { ...corNota(v, { b: 1, bc: 'FFFFFF' }), nf: k < 4 ? '0.0' : '0.00' }));
+        }
+        const f = media(acum[mi].falt);
+        S1.set(rf, c0 + 5, f === null ? null : Math.round(f * 10) / 10, e({ bg: cor.l, fg: cor.d, b: 1, nf: '0.0', bc: 'FFFFFF' }));
+      });
+      const mg = media(gerais);
+      S1.set(rf, colMG, mg === null ? null : Math.round(mg * 100) / 100,
+        e(mg === null ? { bg: ESC, bc: 'FFFFFF' } : { ...corNota(mg, { b: 1, sz: 12, bc: 'FFFFFF' }), nf: '0.00' }));
+      S1.set(rf, colMG + 1, comNotas ? `${aprovados} de ${comNotas} aprovados` : '', e({ bg: ESC, fg: 'FFFFFF', b: 1, bc: 'FFFFFF', wrap: 1 }));
+      S1.set(rf, colMG + 2, null, e({ bg: ESC, bc: 'FFFFFF' }));
+      S1.set(rf, colMG + 3, null, e({ bg: ESC, bc: 'FFFFFF' }));
+
+      const larg1 = [28];
+      materias.forEach(() => larg1.push(6.5, 6.5, 6.5, 6.5, 9, 8));
+      larg1.push(13, 15, 16, 42);
+
+      /* ===== Aba 2: Resumo por disciplina ===== */
+      const S2 = xlsxPlanilha();
+      S2.mesclar(0, 0, 0, 7, e({ bg: ESC, fg: 'FFFFFF', b: 1, sz: 18, h: 'left', borda: false }), '  Resumo por Disciplina');
+      S2.mesclar(1, 0, 1, 7, e({ bg: 'E2E8F0', fg: '475569', h: 'left', borda: false }), `  Gerado em ${hoje}   ·   Média mínima: ${fmt(meta)}`);
+      S2.alturas[0] = 36; S2.alturas[1] = 22; S2.alturas[2] = 8; S2.alturas[3] = 34;
+      ['Disciplina', 'Média da turma', 'Maior média', 'Menor média', 'Aprovados', 'Abaixo da meta', 'Sem notas', 'Faltas (total)']
+        .forEach((t, c) => S2.set(3, c, t, e({ bg: ESC, fg: 'FFFFFF', b: 1, sz: 12, bc: 'FFFFFF', wrap: 1, h: c === 0 ? 'left' : 'center' })));
+
+      materias.forEach((m, mi) => {
+        const r = 4 + mi;
+        const cor = XLSX_PALETA[mi % XLSX_PALETA.length];
+        const meds = acum[mi].med;
+        const zebra = mi % 2 ? 'F8FAFC' : 'FFFFFF';
+        const apr = meds.filter(v => v >= meta).length;
+        S2.alturas[r] = 24;
+        S2.set(r, 0, m.nome, e({ bg: cor.d, fg: 'FFFFFF', b: 1, h: 'left', bc: 'FFFFFF' }));
+        const valor = (c, v) => S2.set(r, c, v === null ? null : Math.round(v * 100) / 100,
+          e(v === null ? { bg: zebra } : { ...corNota(v, { b: c === 1 ? 1 : 0 }), nf: '0.00' }));
+        valor(1, media(meds));
+        valor(2, meds.length ? Math.max(...meds) : null);
+        valor(3, meds.length ? Math.min(...meds) : null);
+        S2.set(r, 4, apr, e({ bg: zebra, fg: '166534', b: 1, nf: '0' }));
+        S2.set(r, 5, meds.length - apr, e({ bg: zebra, fg: meds.length - apr > 0 ? '991B1B' : '94A3B8', b: meds.length - apr > 0 ? 1 : 0, nf: '0' }));
+        S2.set(r, 6, appData.alunos.length - meds.length, e({ bg: zebra, fg: '475569', nf: '0' }));
+        S2.set(r, 7, acum[mi].falt.reduce((a, b) => a + b, 0), e({ bg: zebra, fg: '475569', nf: '0' }));
+      });
+
+      const rl = 4 + materias.length + 1;
+      S2.set(rl, 0, 'Legenda', e({ b: 1, h: 'left', borda: false, fg: '475569' }));
+      S2.mesclar(rl + 1, 1, rl + 1, 4, e({ bg: 'DCFCE7', fg: '166534', h: 'left' }), `Média igual ou acima de ${fmt(meta)}`);
+      S2.mesclar(rl + 2, 1, rl + 2, 4, e({ bg: 'FEE2E2', fg: '991B1B', h: 'left' }), `Média abaixo de ${fmt(meta)}`);
+      S2.set(rl + 1, 0, 'Verde', e({ bg: '16A34A', fg: 'FFFFFF', b: 1 }));
+      S2.set(rl + 2, 0, 'Vermelho', e({ bg: 'DC2626', fg: 'FFFFFF', b: 1 }));
+
+      /* ===== Monta o arquivo ===== */
+      const NS = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"';
+      const cab = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+      const bytes = xlsxZip([
+        { nome: '[Content_Types].xml', conteudo: cab +
+          '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+          '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+          '<Default Extension="xml" ContentType="application/xml"/>' +
+          '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+          '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+          '<Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+          '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+          '</Types>' },
+        { nome: '_rels/.rels', conteudo: cab +
+          '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+          '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+          '</Relationships>' },
+        { nome: 'xl/workbook.xml', conteudo: cab +
+          `<workbook ${NS} xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
+          '<bookViews><workbookView/></bookViews>' +
+          '<sheets><sheet name="Boletim da Turma" sheetId="1" r:id="rId1"/><sheet name="Resumo" sheetId="2" r:id="rId2"/></sheets>' +
+          '</workbook>' },
+        { nome: 'xl/_rels/workbook.xml.rels', conteudo: cab +
+          '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+          '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
+          '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>' +
+          '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+          '</Relationships>' },
+        { nome: 'xl/styles.xml', conteudo: X.xml() },
+        { nome: 'xl/worksheets/sheet1.xml', conteudo: S1.xml({ larguras: larg1, congelar: { col: 1, lin: 5 }, ativa: true }) },
+        { nome: 'xl/worksheets/sheet2.xml', conteudo: S2.xml({ larguras: [30, 15, 14, 14, 13, 15, 12, 14] }) }
+      ]);
+
+      baixarArquivo(bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        `boletim-turma-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      mostrarToast('Planilha Excel exportada.');
+    }
+
+    /* ---------- Backup: exportar / importar (item extra 1) ---------- */
+
+    function exportarBackup() {
+      const payload = {
+        app: 'boletim-notas',
+        versao: 1,
+        exportadoEm: new Date().toISOString(),
+        dados: clonar(appData)
+      };
+      baixarArquivo(JSON.stringify(payload, null, 2), 'application/json', `backup-boletim-${new Date().toISOString().slice(0, 10)}.json`);
+      mostrarToast('Backup exportado — guarde o arquivo em um lugar seguro.');
+    }
+
+    function importarBackupClique() {
+      document.getElementById('input-backup').click();
+    }
+
+    async function processarArquivoBackup(input) {
+      const arquivo = input.files && input.files[0];
+      input.value = ''; // permite importar o mesmo arquivo de novo depois
+      if (!arquivo) return;
+
+      let obj = null;
+      try {
+        const texto = await new Promise((resolver, rejeitar) => {
+          const leitor = new FileReader();
+          leitor.onload = () => resolver(leitor.result);
+          leitor.onerror = rejeitar;
+          leitor.readAsText(arquivo);
+        });
+        obj = JSON.parse(texto);
+      } catch (e) {
+        mostrarToast('Arquivo inválido — não é um backup deste app.', 'erro');
+        return;
+      }
+
+      // Aceita tanto o formato com wrapper (payload.dados) quanto o appData puro
+      const dados = (obj && typeof obj === 'object')
+        ? (obj.dados && Array.isArray(obj.dados.materias) ? obj.dados : (Array.isArray(obj.materias) ? obj : null))
+        : null;
+
+      if (!dados) {
+        mostrarToast('Arquivo inválido — não é um backup deste app.', 'erro');
+        return;
+      }
+
+      const ok = await confirmarP({
+        titulo: 'Importar backup',
+        mensagem: `Substituir <strong>todos</strong> os dados atuais pelos do arquivo <strong>${esc(arquivo.name)}</strong>?` +
+          `<br>(${(dados.alunos || []).length} alunos e ${dados.materias.length} disciplinas no arquivo)`,
+        okLabel: 'Importar'
+      });
+      if (!ok) return;
+
+      appData = { ...clonar(DEFAULT_STATE), ...clonar(dados) };
+      sanearDados();
+      salvarAgora();
+      renderMarca();
+      renderTabs();
+      carregarMateriaAtiva();
+      renderSituacao();
+      renderFormularioNotas();
+      renderListaTurma();
+      document.getElementById('ordem-alunos').value = appData.ordemAlunos || 'az';
+      atualizarIcones();
+      mostrarToast(`Backup importado — ${appData.alunos.length} alunos e ${appData.materias.length} disciplinas.`);
     }
 
     async function alterarMetaModal() {
@@ -2249,13 +2959,30 @@
       renderGrafico();
     }
 
-    function renderGrafico() {
+    /* A linha da meta usa a MESMA referência das barras (.bar-track). Antes ela
+       usava % do container inteiro (que inclui os rótulos), ficando desalinhada. */
+    function posicionarLinhaMeta() {
       const container = document.getElementById('chart-container');
       const metaEl = document.getElementById('chart-meta');
-
-      const meta = appData.mediaMinima;
-      metaEl.style.bottom = (meta / 10 * 100) + '%';
       metaEl.classList.toggle('hidden', appData.materias.length === 0);
+
+      const track = container.querySelector('.bar-track');
+      if (!track) return;
+
+      const cRect = container.getBoundingClientRect();
+      const tRect = track.getBoundingClientRect();
+      if (!cRect.height || !tRect.height) return;
+
+      const bordaInferior = parseFloat(getComputedStyle(container).borderBottomWidth) || 0;
+      const fundoDaArea = (cRect.bottom - bordaInferior) - tRect.bottom;
+      const px = fundoDaArea + (appData.mediaMinima / 10) * tRect.height;
+      metaEl.style.bottom = Math.max(0, px - 1) + 'px'; // -1px centraliza a linha de 2px no topo da barra
+    }
+
+    function renderGrafico() {
+      const container = document.getElementById('chart-container');
+      const meta = appData.mediaMinima;
+
       document.getElementById('chart-meta-label').textContent = 'meta ' + fmt(meta);
 
       if (appData.materias.length === 0) {
@@ -2264,6 +2991,7 @@
         vazio.className = 'chart-empty';
         vazio.textContent = 'Nenhuma disciplina cadastrada.';
         container.appendChild(vazio);
+        posicionarLinhaMeta();
         return;
       }
 
@@ -2284,6 +3012,7 @@
           el.classList.toggle('sel', mat.id === appData.activeId);
           el.title = mat.nome + (media !== null ? ` — média ${fmt(media)}` : ' — sem notas');
         });
+        posicionarLinhaMeta();
         return;
       }
 
@@ -2311,6 +3040,8 @@
 
         container.appendChild(col);
       });
+
+      posicionarLinhaMeta();
     }
 
     function selecionarMateria(id) {
@@ -2332,6 +3063,8 @@
           ? alunoExistente.boletim[mat.id]
           : [null, null, null, null];
 
+        const faltasAtuais = (alunoExistente && alunoExistente.faltas && alunoExistente.faltas[mat.id]) || 0;
+
         const tr = document.createElement('tr');
         let tds = `<td class="disc">${esc(mat.nome)}</td>`;
         for (let b = 0; b < 4; b++) {
@@ -2341,6 +3074,10 @@
                     data-mat="${esc(mat.id)}" data-bim="${b}" maxlength="5"
                     onblur="normalizarCampo(this)" aria-label="${esc(mat.nome)} bimestre ${b + 1}"></td>`;
         }
+        tds += `<td class="nota falta" data-label="Faltas"><input type="text" class="nota-input falta-input aluno-falta-input" inputmode="numeric"
+                  value="${faltasAtuais || ''}" placeholder="0"
+                  data-mat="${esc(mat.id)}" maxlength="3"
+                  onblur="normalizarFalta(this)" aria-label="Faltas em ${esc(mat.nome)}"></td>`;
         tr.innerHTML = tds;
         tbody.appendChild(tr);
       });
@@ -2354,7 +3091,7 @@
       if (!nome) {
         nomeInput.classList.add('invalid');
         nomeInput.focus();
-        mostrarToast('Informe o nome completo do aluno.');
+        mostrarToast('Informe o nome completo do aluno.', 'erro');
         return;
       }
       nomeInput.classList.remove('invalid');
@@ -2367,19 +3104,29 @@
         boletim[matId][bim] = parseNota(input.value);
       });
 
+      const faltas = {};
+      document.querySelectorAll('.aluno-falta-input').forEach(input => {
+        const v = parseInt(input.value, 10);
+        if (Number.isFinite(v) && v > 0) faltas[input.getAttribute('data-mat')] = Math.min(999, v);
+      });
+      const obs = document.getElementById('aluno-obs-input').value.trim();
+
       if (editId) {
         const aluno = appData.alunos.find(a => a.id === editId);
         if (aluno) {
           aluno.nome = nome;
           aluno.boletim = boletim;
+          aluno.faltas = faltas;
+          aluno.obs = obs;
           mostrarToast(`Boletim de ${nome} atualizado.`);
         }
       } else {
-        appData.alunos.push({ id: 'aluno_' + Date.now(), nome, boletim });
+        appData.alunos.push({ id: 'aluno_' + Date.now(), nome, boletim, faltas, obs });
         mostrarToast(`Aluno ${nome} cadastrado.`);
       }
 
       salvarDados();
+      alunoFormSujo = false;
       cancelarEdicaoAluno();
       renderListaTurma();
     }
@@ -2390,21 +3137,33 @@
 
       document.getElementById('edit-aluno-id').value = aluno.id;
       document.getElementById('aluno-nome-input').value = aluno.nome;
+      document.getElementById('aluno-obs-input').value = aluno.obs || '';
       document.getElementById('form-aluno-titulo').innerHTML = `<i data-lucide="user-pen"></i> Editando: ${esc(aluno.nome)}`;
       document.getElementById('btn-cancelar-edicao').classList.remove('hidden');
 
       renderFormularioNotas(aluno);
-      lucide.createIcons();
+      atualizarIcones();
       document.getElementById('secao-turma').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    function cancelarEdicaoAluno() {
+    async function cancelarEdicaoAluno(origem = 'auto') {
+      // Chamado pelo botão: se o usuário alterou algo sem salvar, pede confirmação
+      if (origem === 'clique' && alunoFormSujo && document.getElementById('edit-aluno-id').value) {
+        const ok = await confirmarP({
+          titulo: 'Descartar alterações',
+          mensagem: 'Há alterações ainda não salvas no boletim deste aluno. Deseja descartá-las?',
+          okLabel: 'Descartar'
+        });
+        if (!ok) return;
+      }
+      alunoFormSujo = false;
       document.getElementById('edit-aluno-id').value = '';
       document.getElementById('aluno-nome-input').value = '';
+      document.getElementById('aluno-obs-input').value = '';
       document.getElementById('form-aluno-titulo').innerHTML = `<i data-lucide="user-plus"></i> Novo aluno &amp; notas`;
       document.getElementById('btn-cancelar-edicao').classList.add('hidden');
       renderFormularioNotas();
-      lucide.createIcons();
+      atualizarIcones();
     }
 
     async function excluirAluno(id) {
@@ -2438,12 +3197,51 @@
       return { geral: qtd > 0 ? soma / qtd : null, qtd, abaixo };
     }
 
+    function faltasTotalAluno(aluno) {
+      if (!aluno.faltas) return 0;
+      return Object.values(aluno.faltas).reduce((s, v) => s + (parseInt(v, 10) || 0), 0);
+    }
+
+    function normalizarFalta(input) {
+      const v = parseInt(input.value, 10);
+      input.value = (Number.isFinite(v) && v > 0) ? Math.min(999, v) : '';
+    }
+
+    let filtroAlunos = '';
+
+    function alterarOrdemAlunos(valor) {
+      appData.ordemAlunos = valor;
+      const sel = document.getElementById('ordem-alunos');
+      if (sel && sel.value !== valor) sel.value = valor; // mantém o select sincronizado
+      salvarDados();
+      renderListaTurma();
+    }
+
+    function alunosOrdenados() {
+      const lista = [...appData.alunos];
+      const cmpNome = (a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' });
+      const mediaDe = a => mediaDoAluno(a).geral;
+      const ordem = appData.ordemAlunos || 'az';
+
+      if (ordem === 'za') return lista.sort((a, b) => cmpNome(b, a));
+      if (ordem === 'media_desc') return lista.sort((a, b) => ((mediaDe(b) ?? -1) - (mediaDe(a) ?? -1)) || cmpNome(a, b));
+      if (ordem === 'media_asc') return lista.sort((a, b) => ((mediaDe(a) ?? 11) - (mediaDe(b) ?? 11)) || cmpNome(a, b));
+      return lista.sort(cmpNome);
+    }
+
     function renderListaTurma() {
       const container = document.getElementById('turma-lista');
       const meta = appData.mediaMinima;
 
       if (appData.alunos.length === 0) {
         container.innerHTML = `<div class="tlist-empty">Nenhum aluno cadastrado ainda — use o formulário acima para começar.</div>`;
+        return;
+      }
+
+      const alunos = alunosOrdenados().filter(a => !filtroAlunos || a.nome.toLowerCase().includes(filtroAlunos));
+
+      if (alunos.length === 0) {
+        container.innerHTML = `<div class="tlist-empty">Nenhum aluno encontrado para “${esc(filtroAlunos)}”.</div>`;
         return;
       }
 
@@ -2456,22 +3254,25 @@
           <span class="label" style="text-align:right">Ações</span>
         </div>`;
 
-      appData.alunos.forEach(aluno => {
+      alunos.forEach(aluno => {
         const { geral, qtd, abaixo } = mediaDoAluno(aluno);
         const aprovado = geral !== null && geral >= meta;
+        const faltas = faltasTotalAluno(aluno);
 
         const chip = geral === null
           ? `<span class="chip mute">sem notas</span>`
           : (aprovado ? `<span class="chip ok">aprovado</span>` : `<span class="chip warn">atenção</span>`);
 
-        const sub = abaixo > 0
+        let sub = abaixo > 0
           ? `${qtd} disciplinas · ${abaixo} abaixo da meta`
           : `${qtd} disciplinas`;
+        if (faltas > 0) sub += ` · ${faltas} falta${faltas > 1 ? 's' : ''}`;
 
         html += `
           <div class="tlist-row">
             <div class="tc tc-nome" data-label="Aluno">
               <div class="tc-main">${esc(aluno.nome)}</div>
+              ${aluno.obs ? `<div class="tc-obs" title="${esc(aluno.obs)}">${esc(aluno.obs)}</div>` : ''}
             </div>
             <div class="tc" data-label="Disciplinas"><div class="tc-sub">${sub}</div></div>
             <div class="tc tc-media ${geral === null ? '' : (aprovado ? 'ok' : 'warn')}" data-label="Média geral">
@@ -2480,122 +3281,455 @@
             <div class="tc tc-sit" data-label="Situação">${chip}</div>
             <div class="tc tc-actions" data-label="Ações">
               <button class="btn-icon" onclick="editarAluno('${aluno.id}')" title="Editar aluno e notas" aria-label="Editar ${esc(aluno.nome)}"><i data-lucide="pencil"></i></button>
+              <button class="btn-icon" onclick="gerarPDFAluno('${aluno.id}')" title="Baixar boletim individual em PDF" aria-label="Baixar boletim de ${esc(aluno.nome)}"><i data-lucide="file-text"></i></button>
               <button class="btn-icon danger" onclick="excluirAluno('${aluno.id}')" title="Remover aluno" aria-label="Remover ${esc(aluno.nome)}"><i data-lucide="trash-2"></i></button>
             </div>
           </div>`;
       });
 
       container.innerHTML = html;
-      lucide.createIcons();
+      atualizarIcones();
     }
 
-    /* ---------- PDF da turma ---------- */
+    /* ---------- PDF (vetorial: jsPDF + AutoTable) ----------
+       Texto real (selecionável), quebra de página automática com cabeçalho
+       repetido e arquivo pequeno. Visual sóbrio, de documento escolar:
+       tinta escura, linhas finas e cor só onde ela informa (abaixo da meta). */
 
-    async function gerarPDFTurma() {
-      if (appData.alunos.length === 0) {
-        mostrarToast('Cadastre pelo menos um aluno para gerar o PDF.');
+    const PDF_MARGEM = 15;
+    const PDF_TINTA = [28, 28, 30];
+    const PDF_CINZA = [107, 114, 128];
+    const PDF_LINHA = [214, 217, 222];
+    const PDF_FUNDO = [243, 244, 246];
+    const PDF_OK = [22, 101, 52];
+    const PDF_RUIM = [153, 27, 27];
+    const PDF_RUIM_FUNDO = [252, 231, 229];
+
+    function pdfMediaLista(arr) {
+      return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+    }
+
+    function criarCtxPDF(pdf, titulo) {
+      const ctx = { paginas: new Set(), titulo };
+      ctx.marcar = () => ctx.paginas.add(pdf.internal.getCurrentPageInfo().pageNumber);
+      // Chamado pelo AutoTable: se ele abriu uma página nova, desenha o cabeçalho de continuação
+      ctx.aoQuebrar = () => {
+        if (!ctx.paginas.has(pdf.internal.getCurrentPageInfo().pageNumber)) {
+          cabecalhoPDFContinuacao(pdf, ctx.titulo);
+          ctx.marcar();
+        }
+      };
+      return ctx;
+    }
+
+    function cabecalhoPDF(pdf, titulo) {
+      const largura = pdf.internal.pageSize.getWidth();
+      const escola = (appData.escola || '').trim();
+      let y = 17;
+      if (escola) {
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(9);
+        pdf.setTextColor(...PDF_CINZA);
+        pdf.text(escola, PDF_MARGEM, y);
+        y += 8;
+      } else {
+        y += 3;
+      }
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(19);
+      pdf.setTextColor(...PDF_TINTA);
+      pdf.text(titulo, PDF_MARGEM, y);
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(9);
+      pdf.setTextColor(...PDF_CINZA);
+      pdf.text('Emitido em ' + new Date().toLocaleDateString('pt-BR'), largura - PDF_MARGEM, y - 4, { align: 'right' });
+      pdf.text('Média mínima: ' + fmt(appData.mediaMinima), largura - PDF_MARGEM, y + 1, { align: 'right' });
+
+      pdf.setDrawColor(...PDF_TINTA);
+      pdf.setLineWidth(0.5);
+      pdf.line(PDF_MARGEM, y + 5, largura - PDF_MARGEM, y + 5);
+      return y + 14;
+    }
+
+    function cabecalhoPDFContinuacao(pdf, titulo) {
+      const largura = pdf.internal.pageSize.getWidth();
+      const escola = (appData.escola || '').trim();
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8.5);
+      pdf.setTextColor(...PDF_CINZA);
+      pdf.text((escola ? escola + ' · ' : '') + titulo, PDF_MARGEM, 11);
+      pdf.setDrawColor(...PDF_LINHA);
+      pdf.setLineWidth(0.3);
+      pdf.line(PDF_MARGEM, 14, largura - PDF_MARGEM, 14);
+    }
+
+    function rodapePDF(pdf) {
+      const largura = pdf.internal.pageSize.getWidth();
+      const altura = pdf.internal.pageSize.getHeight();
+      const total = pdf.internal.getNumberOfPages();
+      for (let p = 1; p <= total; p++) {
+        pdf.setPage(p);
+        pdf.setDrawColor(...PDF_LINHA);
+        pdf.setLineWidth(0.3);
+        pdf.line(PDF_MARGEM, altura - 13, largura - PDF_MARGEM, altura - 13);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8);
+        pdf.setTextColor(...PDF_CINZA);
+        pdf.text('Média mínima para aprovação: ' + fmt(appData.mediaMinima), PDF_MARGEM, altura - 8);
+        pdf.text(`Página ${p} de ${total}`, largura - PDF_MARGEM, altura - 8, { align: 'right' });
+      }
+    }
+
+    function pdfSecao(pdf, ctx, texto, y, espacoMinimo) {
+      const altura = pdf.internal.pageSize.getHeight();
+      if (y + espacoMinimo > altura - 20) {
+        pdf.addPage();
+        cabecalhoPDFContinuacao(pdf, ctx.titulo);
+        ctx.marcar();
+        y = 24;
+      }
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(11);
+      pdf.setTextColor(...PDF_TINTA);
+      pdf.text(texto, PDF_MARGEM, y);
+      return y + 4;
+    }
+
+    // Célula de nota/média: só destaca (fundo avermelhado) o que está abaixo da meta
+    function celMediaPDF(v, casas, destacar) {
+      if (v === null || v === undefined) return { content: '-', styles: { textColor: PDF_CINZA } };
+      const txt = fmt(v, casas);
+      if (v < appData.mediaMinima) {
+        return destacar
+          ? { content: txt, styles: { fillColor: PDF_RUIM_FUNDO, textColor: PDF_RUIM, fontStyle: 'bold' } }
+          : { content: txt, styles: { textColor: PDF_RUIM } };
+      }
+      return { content: txt, styles: destacar ? { fontStyle: 'bold' } : {} };
+    }
+
+    function celSituacaoPDF(geral) {
+      if (geral === null) return { content: 'Sem notas', styles: { textColor: PDF_CINZA } };
+      return geral >= appData.mediaMinima
+        ? { content: 'Aprovado', styles: { textColor: PDF_OK, fontStyle: 'bold' } }
+        : { content: 'Atenção', styles: { textColor: PDF_RUIM, fontStyle: 'bold' } };
+    }
+
+    function baseTabelaPDF(margemTopo) {
+      return {
+        theme: 'grid',
+        margin: { top: margemTopo, bottom: 20, left: PDF_MARGEM, right: PDF_MARGEM },
+        styles: {
+          font: 'helvetica', fontSize: 9, cellPadding: 2.2,
+          lineColor: PDF_LINHA, lineWidth: 0.15,
+          textColor: PDF_TINTA, halign: 'center', valign: 'middle'
+        },
+        headStyles: { fillColor: PDF_TINTA, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, lineColor: PDF_TINTA },
+        footStyles: { fillColor: PDF_FUNDO, textColor: PDF_TINTA, fontStyle: 'bold', lineColor: PDF_LINHA },
+        alternateRowStyles: { fillColor: [250, 250, 251] }
+      };
+    }
+
+    function estatisticasTurma() {
+      const meta = appData.mediaMinima;
+      const porMat = appData.materias.map(m => ({ m, notas: [[], [], [], []], meds: [], faltas: 0 }));
+      const gerais = [];
+      let aprov = 0, atencao = 0, semNotas = 0, faltasTotal = 0;
+      appData.alunos.forEach(a => {
+        const { geral } = mediaDoAluno(a);
+        if (geral === null) semNotas++;
+        else { gerais.push(geral); if (geral >= meta) aprov++; else atencao++; }
+        faltasTotal += faltasTotalAluno(a);
+        appData.materias.forEach((m, i) => {
+          const n = (a.boletim && a.boletim[m.id]) || [];
+          for (let k = 0; k < 4; k++) {
+            if (typeof n[k] === 'number' && isFinite(n[k])) porMat[i].notas[k].push(n[k]);
+          }
+          const md = calcularMedia(n);
+          if (md !== null) porMat[i].meds.push(md);
+          porMat[i].faltas += parseInt(a.faltas && a.faltas[m.id], 10) || 0;
+        });
+      });
+      return { porMat, gerais, aprov, atencao, semNotas, faltasTotal, mediaTurma: pdfMediaLista(gerais) };
+    }
+
+    // Faixa de números no topo: alunos, aprovados, em atenção, média da turma
+    function resumoPDF(pdf, y, st) {
+      const largura = pdf.internal.pageSize.getWidth();
+      const w = (largura - PDF_MARGEM * 2) / 4;
+      const itens = [
+        ['ALUNOS', String(appData.alunos.length), PDF_TINTA],
+        ['APROVADOS', String(st.aprov), PDF_TINTA],
+        ['EM ATENÇÃO', String(st.atencao), st.atencao > 0 ? PDF_RUIM : PDF_TINTA],
+        ['MÉDIA DA TURMA', st.mediaTurma === null ? '-' : fmt(st.mediaTurma, 2),
+          st.mediaTurma !== null && st.mediaTurma < appData.mediaMinima ? PDF_RUIM : PDF_TINTA]
+      ];
+      itens.forEach(([rotulo, valor, cor], i) => {
+        const x = PDF_MARGEM + i * w + (i ? 5 : 0);
+        if (i > 0) {
+          pdf.setDrawColor(...PDF_LINHA);
+          pdf.setLineWidth(0.3);
+          pdf.line(PDF_MARGEM + i * w, y - 3, PDF_MARGEM + i * w, y + 10);
+        }
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(7.5);
+        pdf.setTextColor(...PDF_CINZA);
+        pdf.text(rotulo, x, y);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(17);
+        pdf.setTextColor(...cor);
+        pdf.text(valor, x, y + 8);
+      });
+      return y + 20;
+    }
+
+    function quadroGeralPDF(pdf, ctx, y, st) {
+      const mats = appData.materias;
+      const meta = appData.mediaMinima;
+      const apertado = mats.length > 8;
+      const base = baseTabelaPDF(22);
+
+      const head = [['Aluno', ...mats.map(m => m.nome), 'Faltas', 'Média geral', 'Situação']];
+      const body = appData.alunos.map(aluno => {
+        const { geral } = mediaDoAluno(aluno);
+        const faltas = faltasTotalAluno(aluno);
+        return [
+          aluno.nome,
+          ...mats.map(m => celMediaPDF(calcularMedia((aluno.boletim && aluno.boletim[m.id]) || []), 1, true)),
+          faltas > 0 ? String(faltas) : { content: '-', styles: { textColor: PDF_CINZA } },
+          celMediaPDF(geral, 2, true),
+          celSituacaoPDF(geral)
+        ];
+      });
+      const foot = [[
+        'Média da turma',
+        ...st.porMat.map(p => { const v = pdfMediaLista(p.meds); return v === null ? '-' : fmt(v, 1); }),
+        String(st.faltasTotal),
+        st.mediaTurma === null ? '-' : fmt(st.mediaTurma, 2),
+        `${st.aprov} de ${st.gerais.length}`
+      ]];
+
+      const iF = 1 + mats.length;
+      pdf.autoTable({
+        ...base,
+        startY: y,
+        head, body, foot, showFoot: 'lastPage',
+        styles: { ...base.styles, fontSize: apertado ? 7.5 : 8.5, cellPadding: apertado ? 1.6 : 2.2 },
+        columnStyles: {
+          0: { halign: 'left', cellWidth: 40, fontStyle: 'bold' },
+          [iF]: { cellWidth: 13 },
+          [iF + 1]: { cellWidth: 17 },
+          [iF + 2]: { cellWidth: 21 }
+        },
+        didDrawPage: ctx.aoQuebrar
+      });
+      return pdf.lastAutoTable.finalY + 12;
+    }
+
+    function resumoDisciplinasPDF(pdf, ctx, y, st) {
+      const meta = appData.mediaMinima;
+      const base = baseTabelaPDF(22);
+      const body = st.porMat.map(p => {
+        const apr = p.meds.filter(v => v >= meta).length;
+        const abaixo = p.meds.length - apr;
+        return [
+          p.m.nome,
+          celMediaPDF(pdfMediaLista(p.meds), 2, true),
+          String(apr),
+          abaixo > 0 ? { content: String(abaixo), styles: { textColor: PDF_RUIM, fontStyle: 'bold' } } : '0',
+          String(appData.alunos.length - p.meds.length),
+          p.faltas > 0 ? String(p.faltas) : { content: '-', styles: { textColor: PDF_CINZA } }
+        ];
+      });
+      pdf.autoTable({
+        ...base,
+        startY: y,
+        head: [['Disciplina', 'Média da turma', 'Aprovados', 'Abaixo da meta', 'Sem notas', 'Faltas']],
+        body,
+        columnStyles: { 0: { halign: 'left', fontStyle: 'bold' } },
+        didDrawPage: ctx.aoQuebrar
+      });
+      return pdf.lastAutoTable.finalY + 12;
+    }
+
+    /* Bloco completo de um aluno: nome + situação, tabela por disciplina e
+       observações. Usado no PDF da turma e no individual.
+       Retorna o Y onde o próximo bloco pode começar. */
+    function blocoAlunoPDF(pdf, aluno, ctx, yAtual) {
+      const largura = pdf.internal.pageSize.getWidth();
+      const altura = pdf.internal.pageSize.getHeight();
+      const meta = appData.mediaMinima;
+      let y = yAtual;
+
+      // Se o bloco do aluno não couber inteiro na página, começa em uma nova
+      const estimativa = 24 + appData.materias.length * 8 + (aluno.obs ? 12 : 0);
+      if (y + estimativa > altura - 20) {
+        pdf.addPage();
+        cabecalhoPDFContinuacao(pdf, ctx.titulo);
+        ctx.marcar();
+        y = 24;
+      }
+
+      const { geral } = mediaDoAluno(aluno);
+      const faltas = faltasTotalAluno(aluno);
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(12);
+      pdf.setTextColor(...PDF_TINTA);
+      pdf.text(aluno.nome, PDF_MARGEM, y + 4);
+
+      let resumo, cor;
+      if (geral === null) { resumo = 'Sem notas lançadas'; cor = PDF_CINZA; }
+      else {
+        resumo = `Média geral ${fmt(geral, 2)} · ${geral >= meta ? 'Aprovado' : 'Atenção'}`;
+        cor = geral >= meta ? PDF_OK : PDF_RUIM;
+      }
+      if (faltas > 0) resumo += ` · ${faltas} falta${faltas > 1 ? 's' : ''}`;
+      pdf.setFontSize(9.5);
+      pdf.setTextColor(...cor);
+      pdf.text(resumo, largura - PDF_MARGEM, y + 4, { align: 'right' });
+      y += 8;
+
+      const corpo = appData.materias.map(m => {
+        const n = (aluno.boletim && aluno.boletim[m.id]) || [null, null, null, null];
+        const faltasMat = (aluno.faltas && aluno.faltas[m.id]) || 0;
+        const media = calcularMedia(n);
+        return [
+          m.nome,
+          ...[0, 1, 2, 3].map(k => celMediaPDF((typeof n[k] === 'number' && isFinite(n[k])) ? n[k] : null, 1, false)),
+          celMediaPDF(media, 2, true),
+          faltasMat > 0 ? String(faltasMat) : { content: '-', styles: { textColor: PDF_CINZA } },
+          celSituacaoPDF(media)
+        ];
+      });
+
+      const base = baseTabelaPDF(22);
+      pdf.autoTable({
+        ...base,
+        startY: y,
+        head: [['Disciplina', 'B1', 'B2', 'B3', 'B4', 'Média', 'Faltas', 'Situação']],
+        body: corpo,
+        alternateRowStyles: {},
+        headStyles: { fillColor: PDF_FUNDO, textColor: PDF_TINTA, fontStyle: 'bold', fontSize: 8, lineColor: PDF_LINHA },
+        columnStyles: {
+          0: { halign: 'left', fontStyle: 'bold' },
+          6: { cellWidth: 16 },
+          7: { cellWidth: 24 }
+        },
+        didDrawPage: ctx.aoQuebrar
+      });
+
+      y = pdf.lastAutoTable.finalY + 5;
+
+      if (aluno.obs) {
+        pdf.setFont('helvetica', 'italic');
+        pdf.setFontSize(8.5);
+        pdf.setTextColor(...PDF_CINZA);
+        const linhas = pdf.splitTextToSize('Observações: ' + aluno.obs, largura - PDF_MARGEM * 2);
+        pdf.text(linhas, PDF_MARGEM, y);
+        y += linhas.length * 4 + 2;
+      }
+      return y + 9;
+    }
+
+    function assinaturasPDF(pdf, ctx, y) {
+      const largura = pdf.internal.pageSize.getWidth();
+      const altura = pdf.internal.pageSize.getHeight();
+      let yy = Math.max(y + 14, altura - 42);
+      if (yy > altura - 24) {
+        pdf.addPage();
+        cabecalhoPDFContinuacao(pdf, ctx.titulo);
+        ctx.marcar();
+        yy = 60;
+      }
+      const w = 75;
+      pdf.setDrawColor(...PDF_CINZA);
+      pdf.setLineWidth(0.3);
+      pdf.line(PDF_MARGEM, yy, PDF_MARGEM + w, yy);
+      pdf.line(largura - PDF_MARGEM - w, yy, largura - PDF_MARGEM, yy);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8);
+      pdf.setTextColor(...PDF_CINZA);
+      pdf.text('Responsável', PDF_MARGEM + w / 2, yy + 5, { align: 'center' });
+      pdf.text('Professor(a)', largura - PDF_MARGEM - w / 2, yy + 5, { align: 'center' });
+    }
+
+    async function gerarPDFAluno(id) {
+      const aluno = appData.alunos.find(a => a.id === id);
+      if (!aluno) return;
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        mostrarToast('A biblioteca de PDF não carregou. Verifique a conexão e recarregue a página.', 'erro');
         return;
       }
 
       mostrarToast('Gerando PDF…');
+      await new Promise(r => setTimeout(r, 50));
 
-      document.getElementById('pdf-escola').textContent = appData.escola || 'Boletim da Turma';
-      document.getElementById('pdf-data').textContent = new Date().toLocaleDateString('pt-BR');
-      document.getElementById('pdf-meta-escola').textContent = fmt(appData.mediaMinima);
-
-      const conteudo = document.getElementById('pdf-conteudo-alunos');
-      conteudo.innerHTML = '';
-      const meta = appData.mediaMinima;
-
-      appData.alunos.forEach(aluno => {
-        const div = document.createElement('div');
-        div.className = 'pdf-aluno';
-
-        let linhas = '';
-        let soma = 0, qtd = 0;
-
-        appData.materias.forEach(m => {
-          const n = aluno.boletim[m.id] || [null, null, null, null];
-          const media = calcularMedia(n);
-          if (media !== null) { soma += media; qtd++; }
-          const c = n.map(v => (v !== null && v !== undefined) ? fmt(v) : '–');
-          const sit = media === null
-            ? '<span style="color:#94a3b8">–</span>'
-            : (media >= meta
-              ? '<span class="pdf-ok">Aprovado</span>'
-              : '<span class="pdf-warn">Atenção</span>');
-          linhas += `
-            <tr>
-              <td class="disc">${esc(m.nome)}</td>
-              <td>${c[0]}</td><td>${c[1]}</td><td>${c[2]}</td><td>${c[3]}</td>
-              <td><strong>${media !== null ? fmt(media, 2) : '–'}</strong></td>
-              <td class="sit">${sit}</td>
-            </tr>`;
-        });
-
-        const geral = qtd > 0 ? soma / qtd : null;
-        const geralTxt = geral === null
-          ? '<span style="color:#94a3b8">sem notas lançadas</span>'
-          : `<span class="${geral >= meta ? 'pdf-ok' : 'pdf-warn'}">${fmt(geral, 2)} — ${geral >= meta ? 'Aprovado' : 'Atenção'}</span>`;
-
-        div.innerHTML = `
-          <div class="pdf-aluno-head">
-            <h3>${esc(aluno.nome)}</h3>
-            <span>Boletim individual</span>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th style="text-align:left">Disciplina</th>
-                <th>B1</th><th>B2</th><th>B3</th><th>B4</th>
-                <th>Média</th><th>Situação</th>
-              </tr>
-            </thead>
-            <tbody>${linhas}</tbody>
-          </table>
-          <div class="pdf-geral">
-            <span>Média geral do aluno:</span>
-            <span>${geralTxt}</span>
-          </div>`;
-
-        conteudo.appendChild(div);
-      });
-
-      const containerEl = document.getElementById('pdf-container');
       try {
-        const canvas = await html2canvas(containerEl, {
-          scale: 2,
-          backgroundColor: '#ffffff',
-          useCORS: true,
-          logging: false
-        });
-
-        const imgData = canvas.toDataURL('image/jpeg', 0.95);
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF('p', 'mm', 'a4');
+        const ctx = criarCtxPDF(pdf, 'Boletim individual');
 
-        const margemX = 0;
-        const largura = 210;
-        const alturaPagina = 297;
-        const alturaImg = (canvas.height * largura) / canvas.width;
-        let restante = alturaImg;
-        let posicao = 0;
+        let y = cabecalhoPDF(pdf, 'Boletim individual');
+        ctx.marcar();
+        y = blocoAlunoPDF(pdf, aluno, ctx, y + 2);
+        assinaturasPDF(pdf, ctx, y);
+        rodapePDF(pdf);
 
-        pdf.addImage(imgData, 'JPEG', margemX, posicao, largura, alturaImg);
-        restante -= alturaPagina;
+        const nomeArquivo = aluno.nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'aluno';
+        pdf.save(`Boletim_${nomeArquivo}_${new Date().toISOString().slice(0, 10)}.pdf`);
+        mostrarToast(`Boletim de ${aluno.nome} baixado.`);
+      } catch (err) {
+        console.error('Erro ao gerar PDF individual:', err);
+        mostrarToast('Não foi possível gerar o PDF.', 'erro');
+      }
+    }
 
-        while (restante >= 0) {
-          posicao = restante - alturaImg;
-          pdf.addPage();
-          pdf.addImage(imgData, 'JPEG', margemX, posicao, largura, alturaImg);
-          restante -= alturaPagina;
-        }
+    async function gerarPDFTurma() {
+      if (appData.alunos.length === 0) {
+        mostrarToast('Cadastre pelo menos um aluno para gerar o PDF.', 'erro');
+        return;
+      }
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        mostrarToast('A biblioteca de PDF não carregou. Verifique a conexão e recarregue a página.', 'erro');
+        return;
+      }
 
+      mostrarToast('Gerando PDF…');
+      await new Promise(r => setTimeout(r, 50)); // deixa o toast aparecer antes do trabalho pesado
+
+      try {
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const ctx = criarCtxPDF(pdf, 'Boletim da turma');
+        const st = estatisticasTurma();
+
+        let y = cabecalhoPDF(pdf, 'Boletim da turma');
+        ctx.marcar();
+        y = resumoPDF(pdf, y + 2, st);
+
+        y = pdfSecao(pdf, ctx, 'Quadro geral', y, 50);
+        y = quadroGeralPDF(pdf, ctx, y + 2, st);
+
+        y = pdfSecao(pdf, ctx, 'Resumo por disciplina', y, 45);
+        resumoDisciplinasPDF(pdf, ctx, y + 2, st);
+
+        // Detalhe de cada aluno, em páginas seguintes
+        pdf.addPage();
+        cabecalhoPDFContinuacao(pdf, ctx.titulo);
+        ctx.marcar();
+        y = pdfSecao(pdf, ctx, 'Boletim por aluno', 24, 0) + 4;
+        appData.alunos.forEach(aluno => {
+          y = blocoAlunoPDF(pdf, aluno, ctx, y);
+        });
+
+        rodapePDF(pdf);
         pdf.save(`Boletim_Turma_${new Date().toISOString().slice(0, 10)}.pdf`);
-        mostrarToast('PDF baixado com sucesso.');
+        mostrarToast('PDF baixado.');
       } catch (err) {
         console.error('Erro ao gerar PDF:', err);
-        mostrarToast('Não foi possível gerar o PDF.');
+        mostrarToast('Não foi possível gerar o PDF.', 'erro');
       }
     }
 
@@ -2636,19 +3770,23 @@
       document.body.appendChild(el);
       el.select();
       try { document.execCommand('copy'); done(); }
-      catch (e) { mostrarToast('Não foi possível copiar automaticamente.'); }
+      catch (e) { mostrarToast('Não foi possível copiar automaticamente.', 'erro'); }
       document.body.removeChild(el);
     }
 
     /* ---------- Toast ---------- */
 
     let toastTimer = null;
-    function mostrarToast(msg) {
+    // tipo: 'ok' (padrão, ícone verde) ou 'erro' (ícone de alerta, em vermelho)
+    function mostrarToast(msg, tipo = 'ok') {
       const toast = document.getElementById('toast');
       document.getElementById('toast-msg').textContent = msg;
+      document.getElementById('toast-icone').innerHTML = `<i data-lucide="${tipo === 'erro' ? 'alert-circle' : 'check'}"></i>`;
+      toast.classList.toggle('erro', tipo === 'erro');
+      atualizarIcones();
       toast.classList.add('show');
       clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), tipo === 'erro' ? 3600 : 2600);
     }
 
     /* ---------- Inicialização ---------- */
@@ -2663,8 +3801,27 @@
       renderFormularioNotas();
       renderListaTurma();
       atualizarIconeTema();
-      lucide.createIcons();
+      atualizarIcones();
       tornarTabsArrastaveis(document.getElementById('materia-tabs'));
+
+      // Busca e ordenação da lista de alunos
+      document.getElementById('busca-aluno').addEventListener('input', e => {
+        filtroAlunos = e.target.value.trim().toLowerCase();
+        renderListaTurma();
+      });
+      document.getElementById('ordem-alunos').value = appData.ordemAlunos || 'az';
+
+      // Linha da meta e desfoque das abas acompanham o redimensionamento
+      window.addEventListener('resize', () => {
+        posicionarLinhaMeta();
+        atualizarFadesAba();
+      });
+      // Fontes assíncronas mudam as alturas do gráfico — recalcula quando prontas
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(posicionarLinhaMeta);
+
+      // Garante que nada se perca se a aba for fechada logo após digitar
+      window.addEventListener('pagehide', salvarAgora);
+      window.addEventListener('beforeunload', salvarAgora);
 
       // Sombra sutil na topbar depois de rolar (feedback de profundidade)
       const topbarEl = document.querySelector('.topbar');
