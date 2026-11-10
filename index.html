@@ -1003,6 +1003,19 @@
       -webkit-box-orient: vertical;
     }
 
+    /* ---------- Abas de turmas ---------- */
+    .turma-abas { display: flex; gap: 10px; align-items: center; margin: 18px 0 10px; }
+    .turma-abas .tabs { flex: 1; min-width: 0; }
+    .turma-abas .btn { flex-shrink: 0; }
+    #secao-turma > .sheet + .sheet { margin-top: 16px; }
+    .cad-linha { display: grid; grid-template-columns: 1fr 220px; gap: 12px; align-items: end; }
+    @media (max-width: 640px) { .cad-linha { grid-template-columns: 1fr; } }
+    #secao-turma .well-head { margin-bottom: 12px; }
+    .turma-resumo { display: flex; gap: 6px 14px; align-items: center; flex-wrap: wrap; margin-bottom: 0; font-size: 13px; font-weight: 500; color: var(--ink-mute); }
+    .turma-resumo strong { color: var(--ink); font-weight: 600; }
+    .tc-turma { font-size: 11.5px; font-weight: 600; color: var(--primary-strong); margin-top: 2px; }
+    @media (max-width: 640px) { .turma-abas { flex-wrap: wrap; } .turma-abas .btn { width: 100%; } }
+
     /* ---------- Ações da turma (Excel + PDF) ---------- */
 
     .turma-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -1816,65 +1829,81 @@
 
   <!-- Seção da turma (opcional) -->
   <section id="secao-turma" class="wrap hidden">
-    <div class="sheet pad">
 
+    <!-- Quadro 1: turmas -->
+    <div class="sheet pad">
       <div class="turma-head">
         <div>
-          <h2>Turma &amp; alunos</h2>
-          <p>Cadastre alunos, lance as notas bimestrais de cada disciplina e exporte o boletim da turma.</p>
+          <h2>Turmas</h2>
+          <p>Escolha uma turma para ver os alunos dela.</p>
         </div>
         <div class="turma-acoes">
           <button class="btn" onclick="gerarXLSXTurma()" title="Planilha Excel formatada, com cores e resumo por disciplina">
             <i data-lucide="file-spreadsheet"></i> Excel (.xlsx)
           </button>
           <button class="btn btn-solid" onclick="gerarPDFTurma()">
-            <i data-lucide="file-down"></i> Baixar PDF da turma
+            <i data-lucide="file-down"></i> Baixar PDF
           </button>
         </div>
       </div>
+      <div class="turma-abas">
+        <div id="turma-tabs" class="tabs" role="tablist" aria-label="Turmas"></div>
+        <button class="btn btn-small" onclick="novaTurma()"><i data-lucide="plus"></i> Nova turma</button>
+      </div>
+      <div id="turma-resumo" class="turma-resumo"></div>
+    </div>
 
-      <div class="well">
-        <div class="well-head">
-          <h3 id="form-aluno-titulo"><i data-lucide="user-plus"></i> Novo aluno &amp; notas</h3>
-          <button id="btn-cancelar-edicao" class="mini-link hidden" onclick="cancelarEdicaoAluno('clique')">cancelar edição</button>
+    <!-- Quadro 2: cadastro do aluno -->
+    <div class="sheet pad">
+      <div class="well-head">
+        <h3 id="form-aluno-titulo"><i data-lucide="user-plus"></i> Novo aluno &amp; notas</h3>
+        <button id="btn-cancelar-edicao" class="mini-link hidden" onclick="cancelarEdicaoAluno('clique')">cancelar edição</button>
+      </div>
+
+      <input type="hidden" id="edit-aluno-id" value="">
+
+      <div class="cad-linha">
+        <div>
+          <label class="label" for="aluno-nome-input">Nome completo do aluno</label>
+          <input type="text" id="aluno-nome-input" class="field field-name" placeholder="Ex.: Lucas Gabriel" maxlength="80" style="margin-top:6px">
         </div>
-
-        <input type="hidden" id="edit-aluno-id" value="">
-
-        <label class="label" for="aluno-nome-input">Nome completo do aluno</label>
-        <input type="text" id="aluno-nome-input" class="field field-name" placeholder="Ex.: Lucas Gabriel" maxlength="80" style="margin-top:6px">
-
-        <div class="notas-scroll">
-          <table class="notas-table">
-            <thead>
-              <tr>
-                <th>Disciplina</th>
-                <th style="width:74px">B1</th>
-                <th style="width:74px">B2</th>
-                <th style="width:74px">B3</th>
-                <th style="width:74px">B4</th>
-                <th style="width:64px">Faltas</th>
-              </tr>
-            </thead>
-            <tbody id="tbody-notas-aluno-form"></tbody>
-          </table>
-        </div>
-
-        <label class="label" for="aluno-obs-input">Observações (opcional)</label>
-        <textarea id="aluno-obs-input" class="field" rows="2" maxlength="300"
-                  placeholder="Ex.: acompanhamento em leitura, entrega de trabalhos, contato com a família…"
-                  style="margin-top:6px; width:100%; resize:vertical; min-height:58px"></textarea>
-
-        <div class="form-foot">
-          <button class="btn btn-left" onclick="importarListaAlunos()" title="Cadastrar vários alunos de uma vez colando a lista">
-            <i data-lucide="clipboard-list"></i> Colar lista de alunos
-          </button>
-          <button class="btn btn-solid" onclick="salvarAlunoComNotas()">
-            <i data-lucide="save"></i> Salvar aluno
-          </button>
+        <div>
+          <label class="label" for="aluno-turma-input">Turma</label>
+          <select id="aluno-turma-input" class="field" style="margin-top:6px"></select>
         </div>
       </div>
 
+      <div class="notas-scroll">
+        <table class="notas-table">
+          <thead>
+            <tr>
+              <th>Disciplina</th>
+              <th style="width:74px">B1</th>
+              <th style="width:74px">B2</th>
+              <th style="width:74px">B3</th>
+              <th style="width:74px">B4</th>
+              <th style="width:64px">Faltas</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-notas-aluno-form"></tbody>
+        </table>
+      </div>
+
+      <div class="form-foot">
+        <button class="btn btn-left" onclick="importarListaAlunos(false)" title="Cadastrar vários alunos de uma vez colando a lista">
+          <i data-lucide="clipboard-list"></i> Colar lista de alunos
+        </button>
+        <button class="btn btn-solid" onclick="salvarAlunoComNotas()">
+          <i data-lucide="save"></i> Salvar aluno
+        </button>
+      </div>
+    </div>
+
+    <!-- Quadro 3: busca e lista de alunos -->
+    <div class="sheet pad">
+      <div class="well-head">
+        <h3><i data-lucide="users"></i> Alunos</h3>
+      </div>
       <div class="tlist-bar">
         <div class="busca-wrap">
           <i data-lucide="search"></i>
@@ -1888,10 +1917,9 @@
           <option value="media_asc">Menor média</option>
         </select>
       </div>
-
       <div class="tlist" id="turma-lista"></div>
-
     </div>
+
   </section>
 
   <!-- Conteúdo principal -->
@@ -2062,6 +2090,8 @@
         { id: 'm3', nome: 'História',   notas: [null, null, null, null] },
         { id: 'm4', nome: 'Geografia',  notas: [null, null, null, null] }
       ],
+      turmas: [],         // [{ id, nome }] — ex.: "9º ano A"
+      turmaAtiva: 'todas', // 'todas' | 'sem' | id de turma
       alunos: []
     };
 
@@ -2174,6 +2204,17 @@
           else a.faltas[k] = Math.min(999, v);
         });
       });
+      // Turmas: validadas junto com os alunos, então o backup traz tudo de volta
+      if (!Array.isArray(appData.turmas)) appData.turmas = [];
+      const idsTurma = new Set();
+      appData.turmas = appData.turmas.filter(t => t && typeof t.nome === 'string' && t.nome.trim()).map(t => {
+        if (!t.id || idsTurma.has(t.id)) t.id = 't_' + Math.random().toString(36).slice(2, 9);
+        t.nome = t.nome.trim().slice(0, 40);
+        idsTurma.add(t.id);
+        return t;
+      });
+      appData.alunos.forEach(a => { if (!idsTurma.has(a.turmaId)) a.turmaId = ''; });
+      if (appData.turmaAtiva !== 'todas' && appData.turmaAtiva !== 'sem' && !idsTurma.has(appData.turmaAtiva)) appData.turmaAtiva = 'todas';
       if (typeof appData.escola !== 'string') appData.escola = '';
       if (typeof appData.mediaMinima !== 'number' || isNaN(appData.mediaMinima)) appData.mediaMinima = 7.0;
       appData.mediaMinima = Math.min(10, Math.max(0, appData.mediaMinima));
@@ -2273,8 +2314,10 @@
 
       if (modalCtx.tipo === 'lote') {
         const area = document.getElementById('modal-lote');
-        if (!area.value.trim()) { area.classList.add('invalid'); area.focus(); return; }
-        concluirModal(area.value);
+        const campo = document.getElementById('modal-input');
+        if (modalCtx.soTurma && !campo.value.trim()) { campo.classList.add('invalid'); campo.focus(); return; }
+        if (!modalCtx.soTurma && !area.value.trim()) { area.classList.add('invalid'); area.focus(); return; }
+        concluirModal({ texto: area.value, turma: campo.value.trim() });
         return;
       }
 
@@ -2818,48 +2861,171 @@
       return String(s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     }
 
-    async function importarListaAlunos() {
-      const texto = await abrirModal({
-        titulo: 'Cadastrar vários alunos',
-        okLabel: 'Cadastrar',
+    /* ---------- Turmas ---------- */
+
+    function alunosDaTurma() {
+      const t = appData.turmaAtiva;
+      if (t === 'todas') return appData.alunos;
+      if (t === 'sem') return appData.alunos.filter(a => !a.turmaId);
+      return appData.alunos.filter(a => a.turmaId === t);
+    }
+
+    function nomeDaTurma(id) {
+      const t = appData.turmas.find(x => x.id === id);
+      return t ? t.nome : 'Sem turma';
+    }
+
+    function nomeTurmaAtiva() {
+      if (appData.turmaAtiva === 'todas') return 'Todas as turmas';
+      if (appData.turmaAtiva === 'sem') return 'Sem turma';
+      return nomeDaTurma(appData.turmaAtiva);
+    }
+
+    function turmaPadrao() {
+      return appData.turmas.some(t => t.id === appData.turmaAtiva) ? appData.turmaAtiva : '';
+    }
+
+    function slugTurma() {
+      return appData.turmaAtiva === 'todas' ? '' : '_' + nomeTurmaAtiva().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '');
+    }
+
+    function obterOuCriarTurma(nome) {
+      const chave = nomeChave(nome);
+      const achada = appData.turmas.find(t => nomeChave(t.nome) === chave);
+      if (achada) return achada.id;
+      const t = { id: 't_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), nome: nome.trim().replace(/\s+/g, ' ').slice(0, 40) };
+      appData.turmas.push(t);
+      return t.id;
+    }
+
+    function preencherSelectTurma(valor) {
+      const sel = document.getElementById('aluno-turma-input');
+      if (!sel) return;
+      const atual = valor !== undefined ? valor : sel.value;
+      sel.innerHTML = `<option value="">Sem turma</option>` +
+        appData.turmas.map(t => `<option value="${esc(t.id)}">${esc(t.nome)}</option>`).join('');
+      sel.value = appData.turmas.some(t => t.id === atual) ? atual : '';
+    }
+
+    function renderTurmaTabs() {
+      const el = document.getElementById('turma-tabs');
+      if (!el) return;
+      const conta = id => id === 'todas' ? appData.alunos.length
+        : appData.alunos.filter(a => (id === 'sem' ? !a.turmaId : a.turmaId === id)).length;
+      const itens = [{ id: 'todas', nome: 'Todas' }, ...appData.turmas];
+      if (appData.turmas.length && conta('sem') > 0) itens.push({ id: 'sem', nome: 'Sem turma' });
+
+      el.innerHTML = '';
+      itens.forEach(t => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'tab' + (t.id === appData.turmaAtiva ? ' active' : '');
+        b.setAttribute('role', 'tab');
+        b.setAttribute('aria-selected', t.id === appData.turmaAtiva ? 'true' : 'false');
+        b.onclick = () => selecionarTurma(t.id);
+        b.innerHTML = `<span>${esc(t.nome)}</span>`;
+        el.appendChild(b);
+      });
+      const ativa = el.querySelector('.tab.active');
+      if (ativa) el.scrollTo({ left: Math.max(0, ativa.offsetLeft - 16) });
+
+      // Resumo simples: quantos alunos há na turma aberta
+      const lista = alunosDaTurma();
+      const real = appData.turmas.some(t => t.id === appData.turmaAtiva);
+      document.getElementById('turma-resumo').innerHTML =
+        `<span><strong>${lista.length}</strong> aluno${lista.length === 1 ? '' : 's'}</span>` +
+        (real ? `<button class="mini-link" onclick="renomearTurma()">renomear</button><button class="mini-link" onclick="excluirTurma()">excluir turma</button>` : '');
+
+      preencherSelectTurma();
+    }
+
+    function selecionarTurma(id) {
+      appData.turmaAtiva = id;
+      salvarDados();
+      if (!document.getElementById('edit-aluno-id').value) preencherSelectTurma(turmaPadrao());
+      renderListaTurma();
+    }
+
+    function novaTurma() { return importarListaAlunos(true); }
+
+    async function renomearTurma() {
+      const t = appData.turmas.find(x => x.id === appData.turmaAtiva);
+      if (!t) return;
+      const nome = await pedirTextoP({ titulo: 'Renomear turma', label: 'Novo nome da turma', valor: t.nome });
+      if (!nome || nome === t.nome) return;
+      if (appData.turmas.some(x => x.id !== t.id && nomeChave(x.nome) === nomeChave(nome))) {
+        mostrarToast('Já existe uma turma com esse nome.', 'erro');
+        return;
+      }
+      t.nome = nome.slice(0, 40);
+      salvarDados();
+      renderListaTurma();
+      mostrarToast('Turma renomeada.');
+    }
+
+    async function excluirTurma() {
+      const t = appData.turmas.find(x => x.id === appData.turmaAtiva);
+      if (!t) return;
+      const n = appData.alunos.filter(a => a.turmaId === t.id).length;
+      const ok = await confirmarP({
+        titulo: 'Excluir turma',
+        mensagem: `Excluir a turma <strong>${esc(t.nome)}</strong>?` + (n ? `<br>Os ${n} aluno${n > 1 ? 's' : ''} não serão apagados: ficam em “Sem turma”.` : ''),
+        okLabel: 'Excluir'
+      });
+      if (!ok) return;
+      appData.alunos.forEach(a => { if (a.turmaId === t.id) a.turmaId = ''; });
+      appData.turmas = appData.turmas.filter(x => x.id !== t.id);
+      appData.turmaAtiva = n ? 'sem' : 'todas';
+      salvarDados();
+      renderListaTurma();
+      mostrarToast('Turma excluída.');
+    }
+
+    async function importarListaAlunos(soTurma = false) {
+      const padrao = turmaPadrao() ? nomeDaTurma(turmaPadrao()) : '';
+      const r = await abrirModal({
+        titulo: soTurma ? 'Nova turma' : 'Cadastrar vários alunos',
+        okLabel: soTurma ? 'Criar turma' : 'Cadastrar',
         tipo: 'lote',
+        soTurma,
         corpo: `
-          <label class="label" for="modal-lote">Cole a lista — um nome por linha</label>
+          <label class="label" for="modal-input">Turma${soTurma ? '' : ' (opcional)'}</label>
+          <input type="text" id="modal-input" class="field" list="lista-turmas" maxlength="40" autocomplete="off"
+                 value="${esc(soTurma ? '' : padrao)}" placeholder="Ex.: 9º ano A" style="margin:6px 0 14px">
+          <datalist id="lista-turmas">${appData.turmas.map(t => `<option value="${esc(t.nome)}">`).join('')}</datalist>
+          <label class="label" for="modal-lote">${soTurma ? 'Alunos (opcional) — um nome por linha' : 'Cole a lista — um nome por linha'}</label>
           <textarea id="modal-lote" class="field" rows="8" autocomplete="off"
                     placeholder="Ana Silva&#10;Bruno Costa&#10;Carla Dias"
                     style="margin-top:6px; width:100%; resize:vertical; min-height:150px"></textarea>
-          <p class="modal-hint">Nomes já cadastrados (ou repetidos na própria lista) são ignorados automaticamente.</p>`
+          <p class="modal-hint">Se a turma ainda não existir, ela é criada. Nomes repetidos na mesma turma são ignorados.</p>`
       });
-      if (texto === null) return;
+      if (r === null) return;
 
-      const existentes = new Set(appData.alunos.map(a => nomeChave(a.nome)));
+      const turmaId = r.turma ? obterOuCriarTurma(r.turma) : '';
+      const existentes = new Set(appData.alunos.filter(a => (a.turmaId || '') === turmaId).map(a => nomeChave(a.nome)));
       const vistos = new Set();
       let criados = 0, ignorados = 0;
 
-      texto.split(/\r?\n/).forEach(linha => {
+      r.texto.split(/\r?\n/).forEach(linha => {
         const nome = linha.trim().replace(/\s+/g, ' ');
         if (!nome) return;
         const chave = nomeChave(nome);
         if (existentes.has(chave) || vistos.has(chave)) { ignorados++; return; }
         vistos.add(chave);
-        appData.alunos.push({
-          id: 'aluno_' + Date.now() + '_' + criados,
-          nome,
-          boletim: {},
-          faltas: {},
-          obs: ''
-        });
+        appData.alunos.push({ id: 'aluno_' + Date.now() + '_' + criados, nome, turmaId, boletim: {}, faltas: {}, obs: '' });
         criados++;
       });
 
-      if (criados > 0) {
-        salvarDados();
-        renderListaTurma();
-        mostrarToast(`${criados} aluno${criados > 1 ? 's' : ''} cadastrado${criados > 1 ? 's' : ''}` +
-          (ignorados > 0 ? ` · ${ignorados} duplicado${ignorados > 1 ? 's' : ''} ignorado${ignorados > 1 ? 's' : ''}.` : '.'));
-      } else {
+      if (criados === 0 && !soTurma) {
         mostrarToast('Nenhum nome novo para cadastrar.', 'erro');
+        if (turmaId) { salvarDados(); renderListaTurma(); }
+        return;
       }
+      if (turmaId) appData.turmaAtiva = turmaId;
+      salvarDados();
+      renderListaTurma();
+      mostrarToast(soTurma && criados === 0 ? `Turma “${nomeDaTurma(turmaId)}” pronta.`
+        : `${criados} aluno${criados > 1 ? 's' : ''} em ${nomeDaTurma(turmaId)}` + (ignorados > 0 ? ` · ${ignorados} repetido${ignorados > 1 ? 's' : ''} ignorado${ignorados > 1 ? 's' : ''}.` : '.'));
     }
 
     function baixarArquivo(conteudo, tipo, nome) {
@@ -3043,7 +3209,7 @@
     }
 
     function gerarXLSXTurma() {
-      if (appData.alunos.length === 0) {
+      if (alunosDaTurma().length === 0) {
         mostrarToast('Cadastre pelo menos um aluno para exportar a planilha.', 'erro');
         return;
       }
@@ -3067,9 +3233,9 @@
       const colMG = 1 + 6 * materias.length; // coluna da média geral
       const ESC = '1E293B';
 
-      S1.mesclar(0, 0, 0, nCols - 1, e({ bg: ESC, fg: 'FFFFFF', b: 1, sz: 18, h: 'left', borda: false }), '  Boletim da Turma');
+      S1.mesclar(0, 0, 0, nCols - 1, e({ bg: ESC, fg: 'FFFFFF', b: 1, sz: 18, h: 'left', borda: false }), '  Boletim da Turma' + (appData.turmaAtiva === 'todas' ? '' : ' — ' + nomeTurmaAtiva()));
       S1.mesclar(1, 0, 1, nCols - 1, e({ bg: 'E2E8F0', fg: '475569', sz: 11, h: 'left', borda: false }),
-        `  Gerado em ${hoje}   ·   Média mínima: ${fmt(meta)}   ·   ${appData.alunos.length} aluno${appData.alunos.length > 1 ? 's' : ''}   ·   ${materias.length} disciplina${materias.length > 1 ? 's' : ''}`);
+        `  Gerado em ${hoje}   ·   Média mínima: ${fmt(meta)}   ·   ${alunosDaTurma().length} aluno${alunosDaTurma().length > 1 ? 's' : ''}   ·   ${materias.length} disciplina${materias.length > 1 ? 's' : ''}`);
       S1.alturas[0] = 36; S1.alturas[1] = 22; S1.alturas[2] = 8; S1.alturas[3] = 30; S1.alturas[4] = 22;
 
       const stCab = e({ bg: ESC, fg: 'FFFFFF', b: 1, sz: 12, bc: 'FFFFFF', wrap: 1 });
@@ -3088,7 +3254,7 @@
       const gerais = [];
       let aprovados = 0, comNotas = 0;
 
-      appData.alunos.forEach((aluno, i) => {
+      alunosDaTurma().forEach((aluno, i) => {
         const r = 5 + i;
         const zebra = i % 2 ? 'F8FAFC' : 'FFFFFF';
         const { geral, qtd, abaixo } = mediaDoAluno(aluno);
@@ -3126,7 +3292,7 @@
       });
 
       // Rodapé: médias da turma
-      const rf = 5 + appData.alunos.length;
+      const rf = 5 + alunosDaTurma().length;
       S1.alturas[rf] = 26;
       S1.set(rf, 0, 'Média da turma', e({ bg: ESC, fg: 'FFFFFF', b: 1, h: 'left', bc: 'FFFFFF' }));
       materias.forEach((m, mi) => {
@@ -3174,7 +3340,7 @@
         valor(3, meds.length ? Math.min(...meds) : null);
         S2.set(r, 4, apr, e({ bg: zebra, fg: '166534', b: 1, nf: '0' }));
         S2.set(r, 5, meds.length - apr, e({ bg: zebra, fg: meds.length - apr > 0 ? '991B1B' : '94A3B8', b: meds.length - apr > 0 ? 1 : 0, nf: '0' }));
-        S2.set(r, 6, appData.alunos.length - meds.length, e({ bg: zebra, fg: '475569', nf: '0' }));
+        S2.set(r, 6, alunosDaTurma().length - meds.length, e({ bg: zebra, fg: '475569', nf: '0' }));
         S2.set(r, 7, acum[mi].falt.reduce((a, b) => a + b, 0), e({ bg: zebra, fg: '475569', nf: '0' }));
       });
 
@@ -3219,7 +3385,7 @@
       ]);
 
       baixarArquivo(bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        `boletim-turma-${new Date().toISOString().slice(0, 10)}.xlsx`);
+        `boletim-turma${slugTurma()}-${new Date().toISOString().slice(0, 10)}.xlsx`);
       mostrarToast('Planilha Excel exportada.');
     }
 
@@ -3285,7 +3451,7 @@
       carregarMateriaAtiva();
       renderSituacao();
       renderFormularioNotas();
-      renderListaTurma();
+      renderListaTurma(); // redesenha também as abas de turmas
       document.getElementById('ordem-alunos').value = appData.ordemAlunos || 'az';
       atualizarIcones();
       mostrarToast(`Backup importado — ${appData.alunos.length} alunos e ${appData.materias.length} disciplinas.`);
@@ -3437,6 +3603,7 @@
     function renderFormularioNotas(alunoExistente = null) {
       const tbody = document.getElementById('tbody-notas-aluno-form');
       tbody.innerHTML = '';
+      preencherSelectTurma(alunoExistente ? (alunoExistente.turmaId || '') : turmaPadrao());
 
       appData.materias.forEach(mat => {
         const notasAtuais = (alunoExistente && alunoExistente.boletim && alunoExistente.boletim[mat.id])
@@ -3489,7 +3656,7 @@
         const v = parseInt(input.value, 10);
         if (Number.isFinite(v) && v > 0) faltas[input.getAttribute('data-mat')] = Math.min(999, v);
       });
-      const obs = document.getElementById('aluno-obs-input').value.trim();
+      const turmaId = document.getElementById('aluno-turma-input').value;
 
       if (editId) {
         const aluno = appData.alunos.find(a => a.id === editId);
@@ -3497,12 +3664,12 @@
           aluno.nome = nome;
           aluno.boletim = boletim;
           aluno.faltas = faltas;
-          aluno.obs = obs;
+          aluno.turmaId = turmaId;
           mostrarToast(`Boletim de ${nome} atualizado.`);
         }
       } else {
-        appData.alunos.push({ id: 'aluno_' + Date.now(), nome, boletim, faltas, obs });
-        mostrarToast(`Aluno ${nome} cadastrado.`);
+        appData.alunos.push({ id: 'aluno_' + Date.now(), nome, turmaId, boletim, faltas, obs: '' });
+        mostrarToast(`Aluno ${nome} cadastrado` + (turmaId ? ` em ${nomeDaTurma(turmaId)}.` : '.'));
       }
 
       salvarDados();
@@ -3517,7 +3684,6 @@
 
       document.getElementById('edit-aluno-id').value = aluno.id;
       document.getElementById('aluno-nome-input').value = aluno.nome;
-      document.getElementById('aluno-obs-input').value = aluno.obs || '';
       document.getElementById('form-aluno-titulo').innerHTML = `<i data-lucide="user-pen"></i> Editando: ${esc(aluno.nome)}`;
       document.getElementById('btn-cancelar-edicao').classList.remove('hidden');
 
@@ -3539,7 +3705,6 @@
       alunoFormSujo = false;
       document.getElementById('edit-aluno-id').value = '';
       document.getElementById('aluno-nome-input').value = '';
-      document.getElementById('aluno-obs-input').value = '';
       document.getElementById('form-aluno-titulo').innerHTML = `<i data-lucide="user-plus"></i> Novo aluno &amp; notas`;
       document.getElementById('btn-cancelar-edicao').classList.add('hidden');
       renderFormularioNotas();
@@ -3598,7 +3763,7 @@
     }
 
     function alunosOrdenados() {
-      const lista = [...appData.alunos];
+      const lista = [...alunosDaTurma()];
       const cmpNome = (a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' });
       const mediaDe = a => mediaDoAluno(a).geral;
       const ordem = appData.ordemAlunos || 'az';
@@ -3612,9 +3777,14 @@
     function renderListaTurma() {
       const container = document.getElementById('turma-lista');
       const meta = appData.mediaMinima;
+      renderTurmaTabs();
 
       if (appData.alunos.length === 0) {
-        container.innerHTML = `<div class="tlist-empty">Nenhum aluno cadastrado ainda — use o formulário acima para começar.</div>`;
+        container.innerHTML = `<div class="tlist-empty">Nenhum aluno cadastrado ainda — use o formulário acima ou crie uma turma para começar.</div>`;
+        return;
+      }
+      if (alunosDaTurma().length === 0) {
+        container.innerHTML = `<div class="tlist-empty">Nenhum aluno em “${esc(nomeTurmaAtiva())}” ainda — cadastre pelo formulário ou use “Colar lista de alunos”.</div>`;
         return;
       }
 
@@ -3652,6 +3822,7 @@
           <div class="tlist-row">
             <div class="tc tc-nome" data-label="Aluno">
               <div class="tc-main">${esc(aluno.nome)}</div>
+              ${appData.turmaAtiva === 'todas' && appData.turmas.length ? `<div class="tc-turma">${esc(nomeDaTurma(aluno.turmaId))}</div>` : ''}
               ${aluno.obs ? `<div class="tc-obs" title="${esc(aluno.obs)}">${esc(aluno.obs)}</div>` : ''}
             </div>
             <div class="tc" data-label="Disciplinas"><div class="tc-sub">${sub}</div></div>
@@ -3815,7 +3986,7 @@
       const porMat = appData.materias.map(m => ({ m, notas: [[], [], [], []], meds: [], faltas: 0 }));
       const gerais = [];
       let aprov = 0, atencao = 0, semNotas = 0, faltasTotal = 0;
-      appData.alunos.forEach(a => {
+      alunosDaTurma().forEach(a => {
         const { geral } = mediaDoAluno(a);
         if (geral === null) semNotas++;
         else { gerais.push(geral); if (geral >= meta) aprov++; else atencao++; }
@@ -3838,7 +4009,7 @@
       const largura = pdf.internal.pageSize.getWidth();
       const w = (largura - PDF_MARGEM * 2) / 4;
       const itens = [
-        ['ALUNOS', String(appData.alunos.length), PDF_TINTA],
+        ['ALUNOS', String(alunosDaTurma().length), PDF_TINTA],
         ['APROVADOS', String(st.aprov), PDF_TINTA],
         ['EM ATENÇÃO', String(st.atencao), st.atencao > 0 ? PDF_RUIM : PDF_TINTA],
         ['MÉDIA DA TURMA', st.mediaTurma === null ? '-' : fmt(st.mediaTurma, 2),
@@ -3870,7 +4041,7 @@
       const base = baseTabelaPDF(22);
 
       const head = [['Aluno', ...mats.map(m => m.nome), 'Faltas', 'Média geral', 'Situação']];
-      const body = appData.alunos.map(aluno => {
+      const body = alunosDaTurma().map(aluno => {
         const { geral } = mediaDoAluno(aluno);
         const faltas = faltasTotalAluno(aluno);
         return [
@@ -3917,7 +4088,7 @@
           celMediaPDF(pdfMediaLista(p.meds), 2, true),
           String(apr),
           abaixo > 0 ? { content: String(abaixo), styles: { textColor: PDF_RUIM, fontStyle: 'bold' } } : '0',
-          String(appData.alunos.length - p.meds.length),
+          String(alunosDaTurma().length - p.meds.length),
           p.faltas > 0 ? String(p.faltas) : { content: '-', styles: { textColor: PDF_CINZA } }
         ];
       });
@@ -4066,8 +4237,10 @@
       }
     }
 
+    function tituloTurmaPDF() { return appData.turmaAtiva === 'todas' ? 'Boletim da turma' : 'Boletim · ' + nomeTurmaAtiva(); }
+
     async function gerarPDFTurma() {
-      if (appData.alunos.length === 0) {
+      if (alunosDaTurma().length === 0) {
         mostrarToast('Cadastre pelo menos um aluno para gerar o PDF.', 'erro');
         return;
       }
@@ -4082,10 +4255,10 @@
       try {
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF('p', 'mm', 'a4');
-        const ctx = criarCtxPDF(pdf, 'Boletim da turma');
+        const ctx = criarCtxPDF(pdf, tituloTurmaPDF());
         const st = estatisticasTurma();
 
-        let y = cabecalhoPDF(pdf, 'Boletim da turma');
+        let y = cabecalhoPDF(pdf, tituloTurmaPDF());
         ctx.marcar();
         y = resumoPDF(pdf, y + 2, st);
 
@@ -4100,12 +4273,12 @@
         cabecalhoPDFContinuacao(pdf, ctx.titulo);
         ctx.marcar();
         y = pdfSecao(pdf, ctx, 'Boletim por aluno', 24, 0) + 4;
-        appData.alunos.forEach(aluno => {
+        alunosDaTurma().forEach(aluno => {
           y = blocoAlunoPDF(pdf, aluno, ctx, y);
         });
 
         rodapePDF(pdf);
-        pdf.save(`Boletim_Turma_${new Date().toISOString().slice(0, 10)}.pdf`);
+        pdf.save(`Boletim_Turma${slugTurma()}_${new Date().toISOString().slice(0, 10)}.pdf`);
         mostrarToast('PDF baixado.');
       } catch (err) {
         console.error('Erro ao gerar PDF:', err);
@@ -4183,6 +4356,7 @@
       atualizarIconeTema();
       atualizarIcones();
       tornarTabsArrastaveis(document.getElementById('materia-tabs'));
+      tornarTabsArrastaveis(document.getElementById('turma-tabs'));
 
       // Busca e ordenação da lista de alunos
       document.getElementById('busca-aluno').addEventListener('input', e => {
