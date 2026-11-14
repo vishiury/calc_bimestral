@@ -1564,10 +1564,6 @@
 
     @media (max-width: 720px) {
       body { background-attachment: scroll; }
-      /* Vidro mais leve no celular (desempenho) */
-      .topbar { backdrop-filter: blur(18px) saturate(160%); -webkit-backdrop-filter: blur(18px) saturate(160%); }
-      .sheet, .kpi { backdrop-filter: blur(14px) saturate(150%); -webkit-backdrop-filter: blur(14px) saturate(150%); }
-      .topbar { position: static; }
       .topbar-inner { row-gap: 10px; }
       .pad { padding: 17px; }
       .wrap { padding-left: 14px; padding-right: 14px; }
@@ -1722,6 +1718,261 @@
       .bar-col:active .bar { filter: brightness(1.1); }
     }
 
+
+    /* ============================================================
+       ABERTURA COM ROLAGEM (adaptação do "Container Scroll Animation")
+       Título grande no meio da tela; ao rolar, ele some e vira o
+       cabeçalho fixo, enquanto o cartão com os indicadores se
+       endireita (rotação 3D) e o resto da página vai surgindo.
+       ============================================================ */
+
+    .hero-scroll { position: relative; overflow-x: clip; }
+
+    .hero-intro {
+      min-height: calc(100vh - 56px);
+      min-height: calc(100svh - 56px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 16px;
+      padding: 24px 20px 72px;
+      will-change: transform, opacity;
+    }
+
+
+    .hero-title-row { position: relative; isolation: isolate; display: inline-flex; justify-content: center; max-width: 100%; }
+
+    .hero-title {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: clamp(38px, 8.4vw, 100px);
+      letter-spacing: -.04em;
+      line-height: 1.02;
+      max-width: 15ch;
+      overflow-wrap: anywhere;
+      text-wrap: balance;
+      color: var(--ink);
+    }
+
+
+    .hero-cue {
+      margin-top: 28px;
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .06em;
+      color: var(--ink-faint);
+      text-decoration: none;
+      transition: color .2s ease;
+    }
+    .hero-cue:hover { color: var(--primary-strong); }
+    .hero-cue svg { width: 20px; height: 20px; animation: hero-bob 1.8s ease-in-out infinite; }
+    @keyframes hero-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(5px); } }
+
+    /* Cartão 3D */
+    .hero-card-wrap { perspective: 1100px; padding-bottom: 28px; }
+
+    .hero-card {
+      transform-origin: 50% 0%;
+      will-change: transform;
+      background:
+        radial-gradient(520px 150px at 50% 0%, var(--primary-soft), transparent 70%),
+        color-mix(in srgb, var(--card) 78%, transparent);
+      border: 1px solid var(--line-strong);
+      border-radius: 28px;
+      padding: 16px 16px 18px;
+      box-shadow:
+        inset 0 1px 0 var(--glass-edge),
+        0 2px 6px rgba(28, 25, 23, .05),
+        0 30px 60px -28px rgba(28, 25, 23, .38),
+        0 70px 90px -60px rgba(28, 25, 23, .3);
+    }
+    [data-theme="dark"] .hero-card {
+      box-shadow:
+        inset 0 1px 0 var(--glass-edge),
+        0 30px 70px -30px rgba(0, 0, 0, .9),
+        0 70px 100px -60px rgba(0, 0, 0, .8);
+    }
+
+    .hero-card-bar {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 2px 6px 14px;
+    }
+    .hero-card-tag {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: var(--link);
+    }
+    .hero-card-hint { font-size: 12.5px; color: var(--ink-faint); font-weight: 500; }
+
+    /* Dentro do cartão: sem a margem própria e sem desfoque (o desfoque
+       dentro de elementos girados em 3D costuma piscar). */
+    .hero-card .kpis { margin-top: 0; }
+    .hero-card .kpi {
+      background: var(--card);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+
+    /* O nome da escola "desce" para o cabeçalho depois da abertura */
+    .brand-text {
+      opacity: calc((var(--h, 0) - .45) * 2.2);
+      transform: translateY(calc((1 - var(--h, 0)) * 8px));
+      pointer-events: none;
+    }
+    .topbar.titulo-on .brand-text { pointer-events: auto; }
+
+    /* Seções que surgem ao entrar na tela */
+    .reveal-js {
+      opacity: 0;
+      transform: translateY(30px) scale(.985);
+      transition: opacity .7s ease, transform .75s cubic-bezier(.2, .8, .2, 1);
+    }
+    .reveal-js.in { opacity: 1; transform: none; }
+
+    @media (max-width: 640px) {
+      .hero-intro { min-height: calc(100svh - 40px); padding-bottom: 56px; gap: 14px; }
+      .hero-card { border-radius: 22px; padding: 10px 10px 12px; }
+      .hero-card-bar { padding: 2px 4px 10px; }
+      .hero-card-hint { display: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .hero-cue svg { animation: none; }
+      .reveal-js { opacity: 1; transform: none; transition: none; }
+    }
+
+    /* ---------- Título com brilho + letras que surgem ao tocar ---------- */
+
+    .hero-title {
+      --shine: #d8651a;
+      --glow: rgba(226, 122, 34, .55);
+      --glow-soft: rgba(226, 122, 34, .2);
+      --halo: rgba(226, 122, 34, .2);
+    }
+    [data-theme="dark"] .hero-title {
+      --shine: #ffc58f;
+      --glow: rgba(255, 150, 70, .6);
+      --glow-soft: rgba(240, 140, 60, .24);
+      --halo: rgba(226, 122, 34, .22);
+    }
+
+    .hero-title .w { display: inline-block; white-space: nowrap; }
+    .hero-title .l {
+      display: inline-block;
+      opacity: .1;
+      transform: translateY(.14em);
+      transition: opacity .9s ease, transform .9s cubic-bezier(.2, .8, .2, 1), text-shadow .9s ease;
+      transition-delay: calc(var(--i) * 70ms);
+    }
+    .hero-intro.on .hero-title .l {
+      opacity: 1;
+      transform: none;
+      text-shadow: 0 0 30px var(--glow-soft);
+      animation: letra-brilho 4.8s ease-in-out infinite;
+      animation-delay: calc(1.4s + var(--i) * 90ms);
+    }
+    .hero-intro.pronto .hero-title .l { transition-delay: 0ms; animation-delay: calc(var(--i) * 90ms); }
+
+    @keyframes letra-brilho {
+      0%, 24%, 100% { color: var(--ink); text-shadow: 0 0 30px var(--glow-soft); }
+      11% { color: var(--shine); text-shadow: 0 0 12px var(--glow), 0 0 40px var(--glow); }
+    }
+
+    /* Halo suave atrás do título */
+    .hero-title-row::before {
+      content: "";
+      position: absolute;
+      inset: -35% -8%;
+      z-index: -1;
+      pointer-events: none;
+      background: radial-gradient(closest-side, var(--halo, rgba(226, 122, 34, .2)), transparent 72%);
+      opacity: 0;
+      transition: opacity 1.8s ease .3s;
+    }
+    .hero-intro.on .hero-title-row::before { opacity: 1; animation: halo-respira 6s ease-in-out infinite; }
+    @keyframes halo-respira { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+
+    /* Antes de rolar: nada além do título e do "Role para começar" */
+    .topbar-inner { opacity: calc(var(--h, 0) * 5); }
+    .topbar:not(.topo-on) .topbar-inner { pointer-events: none; }
+    .topbar-inner:focus-within { opacity: 1; }
+
+    /* Partículas de fundo */
+    .bg-particulas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .hero-title .l { opacity: 1; transform: none; transition: none; }
+      .hero-intro.on .hero-title .l, .hero-intro.on .hero-title-row::before { animation: none; }
+    }
+
+    /* ============================================================
+       CELULAR E TABLET: cabeçalho fixo numa linha só, sem faixa de
+       degradê cortada e sem rolagem lateral.
+       ============================================================ */
+    @media (max-width: 860px) {
+      .topbar {
+        position: sticky;
+        top: 0;
+        padding: 0 8px;
+        -webkit-backdrop-filter: none;
+                backdrop-filter: none;
+      }
+      .topbar-inner { flex-wrap: nowrap; gap: 8px; row-gap: 0; padding-top: 8px; padding-bottom: 8px; }
+      .brand { flex: 1 1 auto; min-width: 0; gap: 10px; }
+      .brand-text { flex: 1 1 auto; min-width: 0; }
+      .brand-name { min-width: 0; }
+      .brand-text .overline { max-width: 100%; text-overflow: ellipsis; }
+      .brand-name h1 {
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .topbar-actions { width: auto; flex: 0 0 auto; flex-wrap: nowrap; gap: 6px; }
+    }
+
+    @media (max-width: 720px) {
+      .hero-card-wrap { padding-left: 14px; padding-right: 14px; }
+      .hero-title-row::before { inset: -35% 0; }
+    }
+
+    /* Celular: botões só com ícone */
+    @media (max-width: 640px) {
+      .topbar-inner { padding-left: 12px; padding-right: 12px; }
+      .logo-mark { width: 38px; height: 38px; }
+      .brand-name h1 { font-size: 17px; }
+      .topbar-actions { gap: 5px; }
+      .topbar-actions .btn,
+      .topbar-actions .btn-icon {
+        flex: 0 0 auto;
+        width: 38px;
+        height: 38px;
+        padding: 0;
+        justify-content: center;
+      }
+      .topbar-actions .btn .btn-label { display: none; }
+      .topbar-actions .btn svg,
+      .topbar-actions .btn-icon svg { width: 18px; height: 18px; }
+    }
   </style>
 </head>
 <body>
@@ -1781,49 +2032,69 @@
         <button class="btn-icon bordered" id="btn-tema" onclick="alternarTema()" title="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro">
           <i data-lucide="moon"></i>
         </button>
-        <button class="btn" onclick="copiarResumoWhatsApp()" title="Copiar resumo para colar no WhatsApp">
-          <i data-lucide="share-2"></i> Compartilhar
+        <button class="btn" onclick="copiarResumoWhatsApp()" title="Copiar resumo para colar no WhatsApp" aria-label="Compartilhar resumo">
+          <i data-lucide="share-2"></i><span class="btn-label">Compartilhar</span>
         </button>
-        <button class="btn" onclick="toggleSecaoTurma()" id="btn-turma">
-          <i data-lucide="users"></i> Turma &amp; alunos
+        <button class="btn" onclick="toggleSecaoTurma()" id="btn-turma" title="Turma e alunos" aria-label="Turma e alunos">
+          <i data-lucide="users"></i><span class="btn-label">Turma &amp; alunos</span>
         </button>
       </div>
     </div>
   </header>
 
-  <!-- Indicadores -->
-  <section class="kpis wrap">
-    <div class="kpi">
-      <div class="kpi-head">
-        <span class="kpi-label">Média geral</span>
-        <span class="kpi-icon"><i data-lucide="trending-up"></i></span>
+  <!-- Abertura: título no centro + cartão que se alinha ao rolar -->
+  <section class="hero-scroll" id="hero-scroll">
+    <div class="hero-intro" id="hero-intro">
+      <div class="hero-title-row">
+        <p class="hero-title" id="hero-titulo" aria-hidden="true">Calculadora de Notas</p>
       </div>
-      <span class="kpi-value" id="stat-media-geral">–</span>
-      <span class="kpi-sub">todas as disciplinas</span>
+      <a class="hero-cue" href="#hero-card-wrap" aria-label="Rolar para começar">
+        <span>Role para começar</span>
+        <i data-lucide="chevron-down"></i>
+      </a>
     </div>
-    <div class="kpi">
-      <div class="kpi-head">
-        <span class="kpi-label">Média mínima</span>
-        <span class="kpi-icon"><i data-lucide="target"></i></span>
+
+    <div class="hero-card-wrap wrap" id="hero-card-wrap">
+      <div class="hero-card" id="hero-card">
+        <div class="hero-card-bar">
+          <span class="hero-card-tag">Visão geral</span>
+          <span class="hero-card-hint">Atualiza sozinho conforme você lança as notas</span>
+        </div>
+        <section class="kpis" aria-label="Indicadores">
+          <div class="kpi">
+            <div class="kpi-head">
+              <span class="kpi-label">Média geral</span>
+              <span class="kpi-icon"><i data-lucide="trending-up"></i></span>
+            </div>
+            <span class="kpi-value" id="stat-media-geral">–</span>
+            <span class="kpi-sub">todas as disciplinas</span>
+          </div>
+          <div class="kpi">
+            <div class="kpi-head">
+              <span class="kpi-label">Média mínima</span>
+              <span class="kpi-icon"><i data-lucide="target"></i></span>
+            </div>
+            <span class="kpi-value" id="stat-meta-display">7,0</span>
+            <button class="mini-link" onclick="alterarMetaModal()">alterar meta</button>
+          </div>
+          <div class="kpi ok">
+            <div class="kpi-head">
+              <span class="kpi-label">Na meta</span>
+              <span class="kpi-icon"><i data-lucide="check"></i></span>
+            </div>
+            <span class="kpi-value" id="dash-aprovadas">0</span>
+            <span class="kpi-sub">disciplinas</span>
+          </div>
+          <div class="kpi warn">
+            <div class="kpi-head">
+              <span class="kpi-label">Abaixo da meta</span>
+              <span class="kpi-icon"><i data-lucide="alert-circle"></i></span>
+            </div>
+            <span class="kpi-value" id="dash-risco">0</span>
+            <span class="kpi-sub">disciplinas</span>
+          </div>
+        </section>
       </div>
-      <span class="kpi-value" id="stat-meta-display">7,0</span>
-      <button class="mini-link" onclick="alterarMetaModal()">alterar meta</button>
-    </div>
-    <div class="kpi ok">
-      <div class="kpi-head">
-        <span class="kpi-label">Na meta</span>
-        <span class="kpi-icon"><i data-lucide="check"></i></span>
-      </div>
-      <span class="kpi-value" id="dash-aprovadas">0</span>
-      <span class="kpi-sub">disciplinas</span>
-    </div>
-    <div class="kpi warn">
-      <div class="kpi-head">
-        <span class="kpi-label">Abaixo da meta</span>
-        <span class="kpi-icon"><i data-lucide="alert-circle"></i></span>
-      </div>
-      <span class="kpi-value" id="dash-risco">0</span>
-      <span class="kpi-sub">disciplinas</span>
     </div>
   </section>
 
@@ -2560,6 +2831,8 @@
     function renderMarca() {
       const nome = appData.escola || 'Calculadora de Notas';
       document.getElementById('escola-nome').textContent = nome;
+      const heroT = document.getElementById('hero-titulo');
+      if (heroT) { if (window.montarTituloHero) window.montarTituloHero(nome); else heroT.textContent = nome; }
       document.title = nome + ' · Boletim';
       document.getElementById('stat-meta-display').textContent = fmt(appData.mediaMinima);
     }
@@ -4401,6 +4674,199 @@
         if (!agendado) { agendado = true; requestAnimationFrame(atualizar); }
       }, { passive: true });
       atualizar();
+    })();
+  </script>
+  <script>
+    // Abertura com rolagem: título centralizado -> cabeçalho, cartão 3D que se
+    // endireita e seções que surgem. Tudo em JavaScript puro (sem React).
+    (function () {
+      var intro = document.getElementById('hero-intro');
+      var card = document.getElementById('hero-card');
+      var wrap = document.getElementById('hero-card-wrap');
+      var topo = document.querySelector('.topbar');
+      if (!intro || !card || !wrap || !topo) return;
+
+      var reduz = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var agendado = false;
+      function limitar(v) { return Math.min(1, Math.max(0, v)); }
+
+      function atualizar() {
+        agendado = false;
+        var vh = window.innerHeight || 800;
+        var celular = window.innerWidth <= 768;
+
+        // Título: some e sobe enquanto o nome aparece no cabeçalho
+        var h = limitar(window.scrollY / (vh * 0.55));
+        topo.style.setProperty('--h', h.toFixed(3));
+        topo.classList.toggle('titulo-on', h > 0.7);
+        topo.classList.toggle('topo-on', h > 0.06);
+        if (!reduz) {
+          intro.style.opacity = String(Math.max(0, 1 - h * 1.6).toFixed(3));
+          intro.style.transform = 'translateY(' + (-h * 46).toFixed(1) + 'px) scale(' + (1 - h * 0.06).toFixed(3) + ')';
+        }
+
+        // Cartão: 0 quando entra pela base da tela, 1 quando chega perto do topo
+        var topoCartao = wrap.getBoundingClientRect().top;
+        var p = limitar((vh - topoCartao) / (vh * 0.78));
+        if (reduz) { card.style.transform = 'none'; return; }
+        var rot = (celular ? 12 : 20) * (1 - p);
+        var esc = celular ? 0.93 + 0.07 * p : 1.05 - 0.05 * p;
+        card.style.transform = 'rotateX(' + rot.toFixed(2) + 'deg) scale(' + esc.toFixed(3) + ')';
+      }
+
+      function agendar() { if (!agendado) { agendado = true; requestAnimationFrame(atualizar); } }
+      window.addEventListener('scroll', agendar, { passive: true });
+      window.addEventListener('resize', agendar);
+      atualizar();
+
+      // Seções do restante da página surgem conforme entram na tela
+      if (!reduz && 'IntersectionObserver' in window) {
+        var alvos = document.querySelectorAll('main.grid .sheet, #secao-turma, footer.foot');
+        var io = new IntersectionObserver(function (itens) {
+          itens.forEach(function (it) {
+            if (!it.isIntersecting) return;
+            var el = it.target;
+            io.unobserve(el);
+            el.classList.add('in');
+            setTimeout(function () { el.classList.remove('reveal-js', 'in'); el.style.transitionDelay = ''; }, 900);
+          });
+        }, { threshold: 0.06, rootMargin: '0px 0px -6% 0px' });
+        alvos.forEach(function (el, i) {
+          el.classList.add('reveal-js');
+          el.style.transitionDelay = ((i % 3) * 70) + 'ms';
+          io.observe(el);
+        });
+      }
+    })();
+  </script>
+  <script>
+    // Título: monta as letras, revela ao primeiro toque e anima o brilho
+    (function () {
+      var intro = document.getElementById('hero-intro');
+      var titulo = document.getElementById('hero-titulo');
+      if (!intro || !titulo) return;
+
+      var jaApareceu = false;
+
+      window.montarTituloHero = function (nome) {
+        titulo.textContent = '';
+        var i = 0;
+        String(nome).split(/\s+/).filter(Boolean).forEach(function (palavra, k, todas) {
+          var w = document.createElement('span');
+          w.className = 'w';
+          Array.from(palavra).forEach(function (ch) {
+            var l = document.createElement('span');
+            l.className = 'l';
+            l.style.setProperty('--i', i++);
+            l.textContent = ch;
+            w.appendChild(l);
+          });
+          titulo.appendChild(w);
+          if (k < todas.length - 1) titulo.appendChild(document.createTextNode(' '));
+        });
+        // Se o nome for trocado depois da abertura, as letras já aparecem prontas
+        intro.classList.toggle('pronto', jaApareceu);
+      };
+      window.montarTituloHero(titulo.textContent || 'Calculadora de Notas');
+
+      var eventos = ['pointerdown', 'touchstart', 'keydown', 'wheel', 'scroll', 'pointermove'];
+      function revelar() {
+        if (jaApareceu) return;
+        jaApareceu = true;
+        eventos.forEach(function (e) { window.removeEventListener(e, revelar); });
+        intro.classList.add('on');
+        // depois da animação de entrada, trocas de nome não precisam esperar
+        setTimeout(function () { intro.classList.add('pronto'); }, 3500);
+      }
+      eventos.forEach(function (e) { window.addEventListener(e, revelar, { passive: true }); });
+    })();
+  </script>
+  <script>
+    // Partículas: pontinhos lentos subindo, sem linhas ligando um ao outro
+    (function () {
+      var ancora = document.getElementById('bg-paths');
+      var cv = document.createElement('canvas');
+      cv.className = 'bg-particulas';
+      cv.setAttribute('aria-hidden', 'true');
+      if (ancora && ancora.parentNode) ancora.parentNode.insertBefore(cv, ancora.nextSibling);
+      else document.body.insertBefore(cv, document.body.firstChild);
+      var ctx = cv.getContext('2d');
+      if (!ctx) return;
+
+      var reduz = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var larg = 0, alt = 0, dpr = 1;
+      var pontos = [];
+      var cor = [194, 82, 16];
+
+      function atualizarCor() {
+        cor = document.documentElement.getAttribute('data-theme') === 'dark' ? [240, 163, 92] : [194, 82, 16];
+      }
+      atualizarCor();
+      new MutationObserver(atualizarCor).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+      function novo(aleatorioY) {
+        return {
+          x: Math.random() * larg,
+          y: aleatorioY ? Math.random() * alt : alt + 10,
+          r: 0.8 + Math.random() * 1.9,
+          vy: 6 + Math.random() * 14,
+          vx: (Math.random() - 0.5) * 6,
+          fase: Math.random() * 6.28,
+          pisca: 0.25 + Math.random() * 0.6,
+          base: 0.22 + Math.random() * 0.4
+        };
+      }
+
+      function medir() {
+        dpr = Math.min(2, window.devicePixelRatio || 1);
+        larg = window.innerWidth; alt = window.innerHeight;
+        cv.width = Math.round(larg * dpr); cv.height = Math.round(alt * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        var qtd = larg <= 640 ? 28 : 54;
+        while (pontos.length < qtd) pontos.push(novo(true));
+        pontos.length = qtd;
+        if (reduz) desenhar(0);
+      }
+
+      function desenhar(t) {
+        ctx.clearRect(0, 0, larg, alt);
+        var rgb = cor[0] + ',' + cor[1] + ',' + cor[2];
+        for (var i = 0; i < pontos.length; i++) {
+          var p = pontos[i];
+          var a = p.base * (0.65 + 0.35 * Math.sin(t * p.pisca + p.fase));
+          ctx.fillStyle = 'rgba(' + rgb + ',' + a.toFixed(3) + ')';
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, 6.2832);
+          ctx.fill();
+        }
+      }
+
+      var ultimo = 0, rodando = false;
+      function quadro(agora) {
+        if (!rodando) return;
+        var t = agora / 1000;
+        var dt = Math.min(0.05, ultimo ? t - ultimo : 0.016);
+        ultimo = t;
+        for (var i = 0; i < pontos.length; i++) {
+          var p = pontos[i];
+          p.y -= p.vy * dt;
+          p.x += (p.vx + Math.sin(t * 0.6 + p.fase) * 3) * dt;
+          if (p.y < -10) { pontos[i] = novo(false); }
+          if (p.x < -10) p.x = larg + 10; else if (p.x > larg + 10) p.x = -10;
+        }
+        desenhar(t);
+        // as partículas vão ficando mais discretas quando a página desce
+        var h = Math.min(1, Math.max(0, window.scrollY / (alt * 0.55)));
+        cv.style.opacity = (1 - h * 0.6).toFixed(3);
+        requestAnimationFrame(quadro);
+      }
+      function iniciar() { if (reduz || rodando) return; rodando = true; ultimo = 0; requestAnimationFrame(quadro); }
+      function parar() { rodando = false; }
+
+      medir();
+      window.addEventListener('resize', medir);
+      document.addEventListener('visibilitychange', function () { document.hidden ? parar() : iniciar(); });
+      iniciar();
     })();
   </script>
 </body>
