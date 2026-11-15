@@ -34,6 +34,7 @@
   <!-- Versões FIXADAS (nunca @latest em produção) + SRI (o navegador recusa o
        arquivo se for alterado no caminho) + defer (não bloqueiam a pintura). -->
   <script defer src="https://unpkg.com/lucide@1.68.0/dist/umd/lucide.min.js" integrity="sha384-wnWTr2TdZs5YYvmy/j9VgTRRSmVu6+HuDKAfjAkfBQHvcsI/59wGyMue0LRk0fa7" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" integrity="sha384-fCAW/rDWORTbQXSiB7mOg0QtQ5c+r0f544y6XoKjuVva0nMBlCpNUjiFeG5iMdS3" crossorigin="anonymous"></script>
 
@@ -1973,6 +1974,240 @@
       .topbar-actions .btn svg,
       .topbar-actions .btn-icon svg { width: 18px; height: 18px; }
     }
+
+    /* ============================================================
+       Login, conta e aprovação de acessos
+       ============================================================ */
+    .auth-tabs {
+      display: flex; gap: 4px; padding: 4px; margin-bottom: 14px;
+      border-radius: 999px; background: var(--card-2); border: 1px solid var(--line);
+    }
+    .auth-tab {
+      flex: 1; padding: 9px 12px; border: 0; border-radius: 999px; background: transparent;
+      color: var(--ink-mute); font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer;
+      transition: background .2s ease, color .2s ease, box-shadow .2s ease;
+    }
+    .auth-tab:hover { color: var(--ink); }
+    .auth-tab.on { background: var(--card); color: var(--ink); box-shadow: 0 1px 4px rgba(28, 25, 23, .14); }
+    .auth-intro { font-size: 13.5px; color: var(--ink-mute); margin-bottom: 14px; line-height: 1.5; }
+    .auth-intro strong { color: var(--ink); }
+    .auth-pw-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+    .auth-pw-row .field { margin-top: 0; flex: 1; min-width: 0; }
+    .auth-check { display: flex; align-items: center; gap: 8px; margin-top: 14px; font-size: 13.5px; font-weight: 600; color: var(--ink-mute); cursor: pointer; }
+    .auth-check input { width: 17px; height: 17px; accent-color: var(--primary); }
+    .auth-msg { min-height: 20px; margin-top: 12px; font-size: 13px; font-weight: 600; color: var(--ink-mute); line-height: 1.4; }
+    .auth-msg.erro { color: var(--red); }
+    .auth-msg.ok { color: var(--green); }
+    .auth-aviso {
+      display: flex; gap: 14px; align-items: flex-start; padding: 16px; border-radius: var(--radius-md);
+      background: var(--primary-soft); border: 1px solid var(--line);
+    }
+    .auth-aviso svg { width: 22px; height: 22px; flex-shrink: 0; color: var(--primary-strong); margin-top: 2px; }
+    .auth-aviso strong { display: block; color: var(--ink); font-size: 15px; margin-bottom: 4px; }
+    .auth-aviso p { font-size: 13.5px; color: var(--ink-mute); line-height: 1.5; }
+
+    .conta-barra {
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+      padding: 12px 16px;
+    }
+    .conta-info { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1 1 220px; }
+    .conta-avatar {
+      width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+      display: grid; place-items: center; font-weight: 800; color: #fff;
+      background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+    }
+    .conta-info > div { min-width: 0; display: flex; flex-direction: column; }
+    .conta-info strong { font-size: 14.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .conta-info small { font-size: 12.5px; color: var(--ink-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .conta-salvo { font-size: 12.5px; font-weight: 600; color: var(--ink-faint); }
+    .conta-salvo[data-st="salvo"]::before { content: "● "; color: var(--green); }
+    .conta-salvo[data-st="erro"] { color: var(--red); }
+    .conta-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+    .conta-acoes .badge {
+      display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 4px;
+      border-radius: 999px; background: var(--primary); color: #fff; font-size: 11px; font-weight: 800;
+    }
+
+    .aprov-lista { display: flex; flex-direction: column; gap: 8px; max-height: min(52vh, 420px); overflow-y: auto; }
+    .aprov-item {
+      display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; align-items: center;
+      padding: 12px 14px; border-radius: var(--radius-md); background: var(--card-2); border: 1px solid var(--line);
+    }
+    .aprov-quem { min-width: 0; display: flex; flex-direction: column; }
+    .aprov-quem strong { font-size: 14px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
+    .aprov-quem small { font-size: 12.5px; color: var(--ink-faint); overflow: hidden; text-overflow: ellipsis; }
+    .aprov-status { font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: var(--card-3); color: var(--ink-mute); }
+    .aprov-status.st-pendente { background: var(--kpi-warn-bg); color: var(--primary-strong); }
+    .aprov-status.st-aprovado { background: var(--green-bg); color: var(--green); }
+    .aprov-status.st-recusado { background: var(--red-bg); color: var(--red); }
+    .aprov-acoes { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+    .aprov-acoes:empty { display: none; }
+
+    @media (max-width: 640px) {
+      .conta-barra { gap: 10px; }
+      .conta-acoes { width: 100%; }
+      .conta-acoes .btn { flex: 1; justify-content: center; }
+    }
+
+    /* ============================================================
+       Tela de login: cartão de vidro que acompanha o tema do site
+       (claro no tema claro, escuro no tema escuro)
+       ============================================================ */
+    .modal.modal-login {
+      /* tema claro */
+      --l-card: var(--card);
+      --l-img: linear-gradient(to right, var(--primary-soft), transparent 75%);
+      --l-border: var(--line-strong);
+      --l-shadow: 0 40px 90px -30px rgba(28, 25, 23, .4);
+      --l-text: var(--ink);
+      --l-mute: var(--ink-mute);
+      --l-faint: var(--ink-faint);
+      --l-field: rgba(28, 25, 23, .055);
+      --l-ph: var(--ink-faint);
+      --l-ring: var(--primary);
+      --l-logo-bg: var(--primary-soft);
+      --l-logo-fg: var(--primary-strong);
+      --l-hover: rgba(28, 25, 23, .08);
+      --l-line: var(--line);
+      --l-btn: linear-gradient(135deg, var(--primary), var(--primary-strong));
+      --l-btn-hov: linear-gradient(135deg, var(--primary), var(--primary-strong));
+      --l-btn-filter: brightness(1.07);
+      --l-btn-fg: #fff;
+      --l-btn-shadow: 0 12px 26px -12px rgba(194, 82, 16, .6);
+      --l-err: var(--red);
+      --l-ok: var(--green);
+      --l-aviso-bg: var(--primary-soft);
+      --l-aviso-icon: var(--primary-strong);
+      --l-link: var(--ink-soft);
+
+      position: relative;
+      max-width: 384px;
+      overflow-x: hidden;
+      color: var(--l-text);
+      background-color: var(--l-card);
+      background-image: var(--l-img);
+      border: 1px solid var(--l-border);
+      border-radius: 24px;
+      box-shadow: var(--l-shadow);
+      -webkit-backdrop-filter: blur(8px);
+              backdrop-filter: blur(8px);
+    }
+    /* tema escuro */
+    [data-theme="dark"] .modal.modal-login {
+      --l-card: #121212;
+      --l-img: linear-gradient(to right, rgba(255, 255, 255, .08), #121212);
+      --l-border: rgba(255, 255, 255, .1);
+      --l-shadow: 0 40px 90px -24px rgba(0, 0, 0, .75);
+      --l-text: #fff;
+      --l-mute: #d1d5db;
+      --l-faint: #9ca3af;
+      --l-field: rgba(255, 255, 255, .1);
+      --l-ph: #d1d5db;
+      --l-ring: #9ca3af;
+      --l-logo-bg: rgba(255, 255, 255, .2);
+      --l-logo-fg: #fff;
+      --l-hover: rgba(255, 255, 255, .1);
+      --l-line: rgba(255, 255, 255, .1);
+      --l-btn: rgba(255, 255, 255, .1);
+      --l-btn-hov: rgba(255, 255, 255, .2);
+      --l-btn-filter: none;
+      --l-btn-fg: #fff;
+      --l-btn-shadow: 0 6px 18px -8px rgba(0, 0, 0, .7);
+      --l-err: #f87171;
+      --l-ok: #4ade80;
+      --l-aviso-bg: rgba(255, 255, 255, .07);
+      --l-aviso-icon: #fdba74;
+      --l-link: rgba(255, 255, 255, .8);
+    }
+
+    .modal-login .modal-head { display: none; }
+    .modal-login #modal-form {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px;
+    }
+    .modal-login .modal-body { display: contents; }
+
+    .auth-fechar {
+      position: absolute; top: 14px; right: 14px; z-index: 2;
+      width: 34px; height: 34px; border: 0; border-radius: 50%;
+      display: grid; place-items: center; background: transparent; color: var(--l-faint); cursor: pointer;
+      transition: background .2s ease, color .2s ease;
+    }
+    .auth-fechar:hover { background: var(--l-hover); color: var(--l-text); }
+    .auth-fechar svg { width: 18px; height: 18px; }
+
+    .auth-logo {
+      width: 48px; height: 48px; margin-bottom: 22px; border-radius: 50%;
+      display: grid; place-items: center; color: var(--l-logo-fg); background: var(--l-logo-bg);
+      box-shadow: 0 10px 25px -10px rgba(0, 0, 0, .35);
+    }
+    .auth-logo svg { width: 22px; height: 22px; }
+    .auth-titulo {
+      font-family: var(--font-display); font-size: 24px; font-weight: 600; line-height: 1.15;
+      color: var(--l-text); text-align: center; margin-bottom: 8px; overflow-wrap: anywhere;
+    }
+    .auth-sub { font-size: 13px; line-height: 1.45; color: var(--l-faint); text-align: center; margin-bottom: 24px; max-width: 30ch; }
+
+    .modal-login .auth-campos { width: 100%; display: flex; flex-direction: column; gap: 12px; }
+    .auth-input {
+      width: 100%; padding: 12px 20px; border: 0; border-radius: 12px;
+      font: inherit; font-size: 14px; color: var(--l-text); background: var(--l-field);
+      outline: none; transition: box-shadow .2s ease, background .2s ease;
+    }
+    .auth-input::placeholder { color: var(--l-ph); }
+    .auth-input:focus { box-shadow: 0 0 0 2px var(--l-ring); }
+    .auth-input.invalid { box-shadow: 0 0 0 2px var(--l-err); }
+    .auth-campo { position: relative; width: 100%; }
+    .auth-campo .auth-input { padding-right: 48px; }
+    .auth-olho {
+      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+      width: 34px; height: 34px; border: 0; border-radius: 50%;
+      display: grid; place-items: center; background: transparent; color: var(--l-faint); cursor: pointer;
+    }
+    .auth-olho:hover { background: var(--l-hover); color: var(--l-text); }
+    .auth-olho svg { width: 17px; height: 17px; }
+
+    .modal-login .auth-check { margin: 2px 0 0; font-size: 12.5px; font-weight: 500; color: var(--l-faint); }
+    .modal-login .auth-check input { accent-color: var(--primary); }
+    .modal-login .auth-msg { min-height: 0; margin: 0; font-size: 13.5px; font-weight: 500; text-align: left; color: var(--l-mute); }
+    .modal-login .auth-msg:empty { display: none; }
+    .modal-login .auth-msg.erro { color: var(--l-err); }
+    .modal-login .auth-msg.ok { color: var(--l-ok); }
+
+    .modal-login .auth-aviso {
+      width: 100%; margin-bottom: 12px; background: var(--l-aviso-bg); border: 1px solid var(--l-line);
+    }
+    .modal-login .auth-aviso svg { color: var(--l-aviso-icon); }
+    .modal-login .auth-aviso strong { color: var(--l-text); }
+    .modal-login .auth-aviso p { color: var(--l-mute); }
+
+    .modal-login .modal-foot {
+      order: 1; width: 100%; display: block; padding: 16px 0 0; margin-top: 18px;
+      background: none; border: 0; border-top: 1px solid var(--l-line);
+    }
+    .modal-login #modal-cancelar { display: none !important; }
+    .modal-login .modal-foot #modal-ok {
+      width: 100%; padding: 12px 20px; border: 0; border-radius: 999px; justify-content: center;
+      font-size: 14px; font-weight: 600; color: var(--l-btn-fg); background: var(--l-btn);
+      box-shadow: var(--l-btn-shadow);
+      transition: background .2s ease, opacity .2s ease, filter .2s ease;
+    }
+    .modal-login .modal-foot #modal-ok:hover { background: var(--l-btn-hov); filter: var(--l-btn-filter); }
+    .modal-login .modal-foot #modal-ok:focus-visible { outline: 2px solid var(--l-ring); outline-offset: 2px; }
+    .modal-login .modal-foot #modal-ok:disabled { opacity: .6; cursor: progress; filter: none; }
+
+    .modal-login .auth-troca { order: 2; margin-top: 16px; font-size: 12px; color: var(--l-faint); text-align: center; }
+    .modal-login .auth-troca button {
+      padding: 0; border: 0; background: none; font: inherit; color: var(--l-link);
+      text-decoration: underline; cursor: pointer;
+    }
+    .modal-login .auth-troca button:hover { color: var(--l-text); }
+
+    @media (max-width: 420px) {
+      .modal-login #modal-form { padding: 28px 22px; }
+    }
   </style>
 </head>
 <body>
@@ -2100,6 +2335,21 @@
 
   <!-- Seção da turma (opcional) -->
   <section id="secao-turma" class="wrap hidden">
+
+    <!-- Conta: quem está logado, salvamento e aprovações -->
+    <div class="sheet conta-barra hidden" id="conta-barra">
+      <div class="conta-info">
+        <span class="conta-avatar" id="conta-inicial">?</span>
+        <div><strong id="conta-nome"></strong><small id="conta-email"></small></div>
+      </div>
+      <span class="conta-salvo" id="conta-salvo" role="status"></span>
+      <div class="conta-acoes">
+        <button class="btn btn-small hidden" id="btn-aprovacoes" onclick="Nuvem.abrirAprovacoes()">
+          <i data-lucide="user-check"></i> Aprovações <span class="badge hidden" id="aprov-badge"></span>
+        </button>
+        <button class="btn btn-small" onclick="Nuvem.sair()"><i data-lucide="log-out"></i> Sair</button>
+      </div>
+    </div>
 
     <!-- Quadro 1: turmas -->
     <div class="sheet pad">
@@ -2312,7 +2562,7 @@
 
   <!-- Rodapé -->
   <footer class="foot wrap">
-    <span>Os dados ficam salvos apenas neste navegador</span>
+    <span>Calculadora salva neste navegador · turmas protegidas por login</span>
     <span>© <span id="ano-footer"></span></span>
   </footer>
 
@@ -2367,6 +2617,9 @@
     };
 
     let appData = clonar(DEFAULT_STATE);
+    // Turmas/alunos salvos neste navegador ANTES do login existir. Ficam guardados só
+    // até serem enviados à conta; sem login nunca vão para a memória da página.
+    let legadoTurma = null;
 
     /* ---------- Utilidades ---------- */
 
@@ -2441,6 +2694,14 @@
       }
 
       sanearDados();
+
+      // Sem login, a página não carrega turmas nem alunos (eles vivem na conta)
+      legadoTurma = (appData.alunos.length || appData.turmas.length)
+        ? { turmas: appData.turmas, alunos: appData.alunos, turmaAtiva: appData.turmaAtiva }
+        : null;
+      appData.turmas = [];
+      appData.alunos = [];
+      appData.turmaAtiva = 'todas';
     }
 
     // Valida e completa os dados do app (usado ao carregar E ao importar backup)
@@ -2502,7 +2763,14 @@
 
     function gravarAgora() {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+        // O navegador guarda só a calculadora. Turmas e alunos vão para a conta.
+        const copiaLocal = { ...appData, turmas: [], alunos: [], turmaAtiva: 'todas' };
+        if (legadoTurma) {
+          copiaLocal.turmas = legadoTurma.turmas;
+          copiaLocal.alunos = legadoTurma.alunos;
+          copiaLocal.turmaAtiva = legadoTurma.turmaAtiva;
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(copiaLocal));
         avisouFalhaSalvar = false;
       } catch (e) {
         // Cota cheia / armazenamento indisponível — avisa uma vez só, sem repetir
@@ -2511,6 +2779,7 @@
           mostrarToast('Atenção: não foi possível salvar os dados neste navegador.', 'erro');
         }
       }
+      if (window.Nuvem) window.Nuvem.agendar();
     }
 
     function salvarDados() {
@@ -2542,6 +2811,8 @@
         document.getElementById('modal-cancelar').classList.toggle('hidden', !!opts.escondeCancelar);
 
         const overlay = document.getElementById('overlay');
+        overlay.querySelector('.modal').classList.toggle('modal-login', opts.visual === 'login');
+        document.getElementById('modal-form').noValidate = opts.visual === 'login'; // usa as mensagens do site, não as do navegador
         overlay.classList.remove('hidden');
 
         const input = document.getElementById('modal-input');
@@ -2573,6 +2844,8 @@
       e.preventDefault();
       if (!modalCtx) return;
       const input = document.getElementById('modal-input');
+
+      if (modalCtx.tipo === 'auth') { if (modalCtx.aoEnviar) modalCtx.aoEnviar(); return; }
 
       if (modalCtx.tipo === 'numero') {
         const n = parseNota(input.value);
@@ -2858,6 +3131,10 @@
     function toggleSecaoTurma() {
       const secao = document.getElementById('secao-turma');
       const vaiAbrir = secao.classList.contains('hidden');
+      if (vaiAbrir && !(window.Nuvem && window.Nuvem.liberado())) {
+        if (window.Nuvem) window.Nuvem.abrirAuth();
+        return;
+      }
       secao.classList.toggle('hidden');
       document.getElementById('btn-turma').classList.toggle('btn-solid', !vaiAbrir);
       if (vaiAbrir) {
@@ -3482,6 +3759,7 @@
     }
 
     function gerarXLSXTurma() {
+      if (!(window.Nuvem && window.Nuvem.liberado())) { if (window.Nuvem) window.Nuvem.abrirAuth(); return; }
       if (alunosDaTurma().length === 0) {
         mostrarToast('Cadastre pelo menos um aluno para exportar a planilha.', 'erro');
         return;
@@ -3699,13 +3977,17 @@
       }
 
       // Aceita tanto o formato com wrapper (payload.dados) quanto o appData puro
-      const dados = (obj && typeof obj === 'object')
+      let dados = (obj && typeof obj === 'object')
         ? (obj.dados && Array.isArray(obj.dados.materias) ? obj.dados : (Array.isArray(obj.materias) ? obj : null))
         : null;
 
       if (!dados) {
         mostrarToast('Arquivo inválido — não é um backup deste app.', 'erro');
         return;
+      }
+      // Sem login aprovado, o backup entra só com a calculadora (sem turmas e alunos)
+      if (!(window.Nuvem && window.Nuvem.liberado())) {
+        dados = { ...dados, alunos: [], turmas: [], turmaAtiva: 'todas' };
       }
 
       const ok = await confirmarP({
@@ -4479,6 +4761,7 @@
     }
 
     async function gerarPDFAluno(id) {
+      if (!(window.Nuvem && window.Nuvem.liberado())) { if (window.Nuvem) window.Nuvem.abrirAuth(); return; }
       const aluno = appData.alunos.find(a => a.id === id);
       if (!aluno) return;
       if (!window.jspdf || !window.jspdf.jsPDF) {
@@ -4513,6 +4796,7 @@
     function tituloTurmaPDF() { return appData.turmaAtiva === 'todas' ? 'Boletim da turma' : 'Boletim · ' + nomeTurmaAtiva(); }
 
     async function gerarPDFTurma() {
+      if (!(window.Nuvem && window.Nuvem.liberado())) { if (window.Nuvem) window.Nuvem.abrirAuth(); return; }
       if (alunosDaTurma().length === 0) {
         mostrarToast('Cadastre pelo menos um aluno para gerar o PDF.', 'erro');
         return;
@@ -4867,6 +5151,516 @@
       window.addEventListener('resize', medir);
       document.addEventListener('visibilitychange', function () { document.hidden ? parar() : iniciar(); });
       iniciar();
+    })();
+  </script>
+  <script>
+    /* ==========================================================
+       Login, aprovação e nuvem (Supabase)
+       - Calculadora do aluno: continua só no navegador, sem conta.
+       - Turmas e alunos: só para professores APROVADOS. Os dados ficam no
+         servidor, protegidos por regras (RLS) — sem login não existe dado
+         nenhum para ver, nem pelo console do navegador.
+       ========================================================== */
+    (function () {
+      'use strict';
+
+      var SUPABASE_URL = 'https://lkimhqggoxbvcesgtzmd.supabase.co';
+      var SUPABASE_KEY = 'sb_publishable_a3nxIjs2mLdSTnr1cRw7cg_fnuOD9aj'; // chave pública (segura no site)
+      var CHAVE_MANTER = 'boletim_manter_login';
+
+      var sb = null, sessao = null, perfil = null;
+      var estado = 'carregando'; // carregando | deslogado | pendente | recusado | liberado | erro | indisponivel
+      var pronto = false, uidCarregado = null;
+      var sujo = false, salvando = false, reagendar = false, timer = null, avisouErro = false;
+      var ultimaAssinatura = '';
+      var view = 'entrar', ocupado = false;
+      var syncPromise = null, syncAgain = false;
+      var pendentes = 0;
+
+      function $(id) { return document.getElementById(id); }
+      function liberado() { return estado === 'liberado' && pronto; }
+
+      /* ---------- Sessão: só fica salva neste aparelho se a pessoa pedir ---------- */
+      function manter() { try { return localStorage.getItem(CHAVE_MANTER) === '1'; } catch (e) { return false; } }
+      var armazem = {
+        getItem: function (k) { try { return sessionStorage.getItem(k) || localStorage.getItem(k); } catch (e) { return null; } },
+        setItem: function (k, v) {
+          try {
+            var alvo = manter() ? localStorage : sessionStorage;
+            var outro = manter() ? sessionStorage : localStorage;
+            alvo.setItem(k, v); outro.removeItem(k);
+          } catch (e) { /* ignora */ }
+        },
+        removeItem: function (k) { try { sessionStorage.removeItem(k); localStorage.removeItem(k); } catch (e) { /* ignora */ } }
+      };
+
+      function traduzir(err) {
+        var m = String((err && err.message) || err || '').toLowerCase();
+        if (m.indexOf('invalid login') > -1) return 'E-mail ou senha incorretos.';
+        if (m.indexOf('already registered') > -1 || m.indexOf('already been registered') > -1) return 'Este e-mail já tem conta. Use a aba Entrar.';
+        if (m.indexOf('email not confirmed') > -1) return 'Confirme seu e-mail (veja a caixa de entrada) antes de entrar.';
+        if (m.indexOf('rate limit') > -1 || m.indexOf('too many') > -1 || (err && err.status === 429)) return 'Muitas tentativas. Aguarde alguns minutos e tente de novo.';
+        if (m.indexOf('password') > -1) return 'Senha fraca ou curta. Use pelo menos 8 caracteres.';
+        if (m.indexOf('failed to fetch') > -1 || m.indexOf('network') > -1) return 'Sem conexão com o servidor. Verifique a internet.';
+        return 'Não foi possível concluir. Tente de novo em instantes.';
+      }
+
+      /* ---------- Estado: quem é a pessoa e o que ela pode ver ---------- */
+      function renderTudo() {
+        renderMarca();
+        renderTabs();
+        carregarMateriaAtiva();
+        renderSituacao();
+        renderFormularioNotas();
+        renderListaTurma();
+        var ordem = $('ordem-alunos'); if (ordem) ordem.value = appData.ordemAlunos || 'az';
+        atualizarIcones();
+      }
+
+      // Tira as turmas da memória quando a pessoa sai (ou perde a aprovação)
+      function encerrarLocal() {
+        if (!pronto) return;
+        clearTimeout(timer); timer = null;
+        pronto = false; uidCarregado = null; sujo = false; ultimaAssinatura = '';
+        carregarDados();
+        renderTudo();
+      }
+
+      function sincronizar() {
+        if (syncPromise) { syncAgain = true; return syncPromise; }
+        syncPromise = (async function () {
+          do { syncAgain = false; await sincronizarUma(); } while (syncAgain);
+        })().then(function () { syncPromise = null; }, function (e) { syncPromise = null; console.error(e); });
+        return syncPromise;
+      }
+
+      async function sincronizarUma() {
+        if (!sb) return;
+        var s = sessao;
+        if (!s || !s.user) { encerrarLocal(); perfil = null; estado = 'deslogado'; atualizarUI(); return; }
+        var uid = s.user.id;
+        var r = await sb.from('perfis').select('id,nome,email,status,admin').eq('id', uid).maybeSingle();
+        if (r.error) { if (!pronto) estado = 'erro'; atualizarUI(); return; }
+        perfil = r.data || { id: uid, nome: '', email: s.user.email || '', status: 'pendente', admin: false };
+
+        if (perfil.status === 'aprovado') {
+          if (!(pronto && uidCarregado === uid)) {
+            var ok = await carregarNuvem(uid);
+            if (!ok) { estado = 'erro'; atualizarUI(); return; }
+          }
+          estado = 'liberado';
+          if (sujo) salvarNuvem(); // conta nova: primeiro envio das turmas
+          if (perfil.admin) contarPendentes();
+        } else {
+          encerrarLocal();
+          estado = perfil.status === 'recusado' ? 'recusado' : 'pendente';
+        }
+        atualizarUI();
+      }
+
+      async function carregarNuvem(uid) {
+        var r = await sb.from('boletim_dados').select('dados').eq('user_id', uid).maybeSingle();
+        if (r.error) return false;
+        var contaNova = true;
+        if (r.data && r.data.dados && Array.isArray(r.data.dados.materias)) {
+          appData = Object.assign(clonar(DEFAULT_STATE), r.data.dados);
+          sanearDados();
+          contaNova = false;
+        } else if (legadoTurma && (legadoTurma.alunos.length || legadoTurma.turmas.length)) {
+          liberarBotao();
+          var trazer = await abrirModal({
+            titulo: 'Trazer as turmas deste navegador?',
+            okLabel: 'Trazer para a conta',
+            tipo: 'confirm',
+            corpo: '<p class="confirm-msg">Encontrei <strong>' + legadoTurma.alunos.length + ' aluno(s)</strong> e <strong>' +
+              legadoTurma.turmas.length + ' turma(s)</strong> salvos neste navegador de antes do login. ' +
+              'Enviar para a sua conta? Depois disso eles ficam protegidos por login.</p>'
+          });
+          if (trazer === true) {
+            appData.turmas = legadoTurma.turmas;
+            appData.alunos = legadoTurma.alunos;
+            appData.turmaAtiva = legadoTurma.turmaAtiva;
+            sanearDados();
+            legadoTurma = null; // sai do navegador assim que a nuvem confirmar
+          }
+        }
+        uidCarregado = uid; pronto = true;
+        ultimaAssinatura = contaNova ? '' : JSON.stringify(appData);
+        renderTudo();
+        if (contaNova) { sujo = true; salvarNuvem(); }
+        return true;
+      }
+
+      /* ---------- Salvar na nuvem (com espera para não salvar a cada tecla) ---------- */
+      function marcar(st) {
+        var el = $('conta-salvo'); if (!el) return;
+        var t = { salvo: 'Salvo na conta', salvando: 'Salvando…', pendente: 'Alterações pendentes…', erro: 'Sem conexão — tentando de novo' };
+        el.textContent = t[st] || ''; el.setAttribute('data-st', st);
+      }
+
+      function agendar() {
+        if (!liberado()) return;
+        if (JSON.stringify(appData) === ultimaAssinatura) return;
+        sujo = true; marcar('pendente');
+        clearTimeout(timer); timer = setTimeout(salvarNuvem, 1200);
+      }
+
+      async function salvarNuvem() {
+        if (!liberado()) return;
+        if (salvando) { reagendar = true; return; }
+        var assinatura = JSON.stringify(appData);
+        if (assinatura === ultimaAssinatura) { sujo = false; marcar('salvo'); return; }
+        salvando = true; reagendar = false; clearTimeout(timer); timer = null; sujo = false; marcar('salvando');
+        var uid = uidCarregado;
+        var r = await sb.from('boletim_dados').upsert(
+          { user_id: uid, dados: JSON.parse(assinatura), atualizado_em: new Date().toISOString() },
+          { onConflict: 'user_id' }
+        );
+        salvando = false;
+        if (r.error) {
+          sujo = true; marcar('erro');
+          if (!avisouErro) { avisouErro = true; mostrarToast('Não foi possível salvar na conta. Vou tentar de novo.', 'erro'); }
+          var negado = r.error.code === '42501' || r.status === 401 || r.status === 403;
+          if (negado) sincronizar(); else timer = setTimeout(salvarNuvem, 8000);
+          return;
+        }
+        avisouErro = false; ultimaAssinatura = assinatura;
+        // se o servidor confirmou, as turmas antigas já podem sair deste navegador
+        if (!legadoTurma) gravarAgora();
+        if (reagendar || JSON.stringify(appData) !== ultimaAssinatura) { sujo = true; marcar('pendente'); timer = setTimeout(salvarNuvem, 300); }
+        else marcar('salvo');
+      }
+
+      /* ---------- Telas de login ---------- */
+      function msg(texto, tipo) {
+        var el = $('auth-msg'); if (!el) return;
+        el.textContent = texto || ''; el.className = 'auth-msg' + (tipo ? ' ' + tipo : '');
+      }
+      function erroCampo(texto, id) {
+        msg(texto, 'erro');
+        var c = $(id); if (c) { c.classList.add('invalid'); c.focus(); }
+      }
+      function ocupar(sim) {
+        ocupado = sim;
+        var ok = $('modal-ok'); if (!ok) return;
+        ok.disabled = sim;
+        if (sim) { ok.setAttribute('data-txt', ok.textContent); ok.textContent = 'Aguarde…'; }
+        else if (ok.getAttribute('data-txt')) { ok.textContent = ok.getAttribute('data-txt'); }
+      }
+
+      // Outro modal vai reaproveitar o botão principal: destrava e limpa o estado "Aguarde…"
+      function liberarBotao() {
+        ocupado = false;
+        var ok = $('modal-ok');
+        if (ok) { ok.disabled = false; ok.removeAttribute('data-txt'); }
+      }
+
+      function cabecalho(sub) {
+        var nome = (typeof appData !== 'undefined' && appData.escola) ? appData.escola : 'Calculadora de Notas';
+        return '<button type="button" class="auth-fechar" data-acao="fechar" aria-label="Fechar"><i data-lucide="x"></i></button>' +
+          '<div class="auth-logo"><i data-lucide="graduation-cap"></i></div>' +
+          '<h2 class="auth-titulo">' + esc(nome) + '</h2>' +
+          '<p class="auth-sub">' + esc(sub) + '</p>';
+      }
+      function campoTexto(id, tipo, rotulo, auto, max) {
+        return '<input id="' + id + '" class="auth-input" type="' + tipo + '" placeholder="' + rotulo + '" aria-label="' + rotulo +
+          '" autocomplete="' + auto + '" maxlength="' + max + '">';
+      }
+      function campoSenha(id, rotulo, auto) {
+        return '<div class="auth-campo"><input id="' + id + '" class="auth-input auth-pw" type="password" placeholder="' + rotulo +
+          '" aria-label="' + rotulo + '" autocomplete="' + auto + '" maxlength="72">' +
+          '<button type="button" class="auth-olho" data-acao="ver" aria-label="Mostrar ou ocultar a senha"><i data-lucide="eye"></i></button></div>';
+      }
+      function aviso(icone, titulo, texto) {
+        return '<div class="auth-aviso"><i data-lucide="' + icone + '"></i><div><strong>' + titulo + '</strong><p>' + texto + '</p></div></div>' +
+          '<div class="auth-campos"><p id="auth-msg" class="auth-msg" role="alert"></p></div>';
+      }
+      var SAIR_LINK = '<p class="auth-troca"><button type="button" data-acao="sair">Sair desta conta</button></p>';
+
+      function configView(v) {
+        if (v === 'criar') return {
+          titulo: 'Criar conta', ok: 'Criar conta',
+          corpo: cabecalho('Depois de criar a conta, a coordenação aprova o seu acesso') +
+            '<div class="auth-campos">' +
+              campoTexto('auth-nome', 'text', 'Nome completo', 'name', 80) +
+              campoTexto('modal-input', 'email', 'E-mail', 'email', 120) +
+              campoSenha('auth-senha', 'Senha (mínimo 8 caracteres)', 'new-password') +
+              campoSenha('auth-senha2', 'Repita a senha', 'new-password') +
+              '<p id="auth-msg" class="auth-msg" role="alert"></p>' +
+            '</div>' +
+            '<p class="auth-troca">Já tem conta? <button type="button" data-view="entrar">Entrar</button></p>'
+        };
+        if (v === 'confirmar') return {
+          titulo: 'Confirme seu e-mail', ok: 'Ir para Entrar',
+          corpo: cabecalho('Confirme seu e-mail') +
+            aviso('mail-check', 'Quase lá!', 'Enviamos um e-mail de confirmação. Abra o link que chegou e depois entre aqui. Em seguida, a coordenação precisa aprovar o seu acesso.')
+        };
+        if (v === 'pendente') return {
+          titulo: 'Aguardando aprovação', ok: 'Verificar de novo',
+          corpo: cabecalho('Aguardando aprovação') +
+            aviso('hourglass', 'Conta criada.', 'A coordenação ainda precisa aprovar o seu acesso à área de turmas. Assim que for aprovado, toque em “Verificar de novo”.') +
+            SAIR_LINK
+        };
+        if (v === 'recusado') return {
+          titulo: 'Acesso não liberado', ok: 'Verificar de novo',
+          corpo: cabecalho('Acesso não liberado') +
+            aviso('shield-off', 'Este acesso não foi liberado.', 'Se isso for um engano, fale com a coordenação da escola.') +
+            SAIR_LINK
+        };
+        if (v === 'indisponivel') return {
+          titulo: 'Login indisponível', ok: 'Tentar de novo',
+          corpo: cabecalho('Login indisponível') +
+            aviso('wifi-off', 'Não consegui carregar o sistema de login.', 'Verifique a conexão e recarregue a página.')
+        };
+        return {
+          titulo: 'Entrar', ok: 'Entrar',
+          corpo: cabecalho('Área de turmas · acesso autorizado') +
+            '<div class="auth-campos">' +
+              campoTexto('modal-input', 'email', 'E-mail', 'email', 120) +
+              campoSenha('auth-senha', 'Senha', 'current-password') +
+              '<label class="auth-check"><input type="checkbox" id="auth-manter"' + (manter() ? ' checked' : '') + '> Manter conectado neste aparelho</label>' +
+              '<p id="auth-msg" class="auth-msg" role="alert"></p>' +
+            '</div>' +
+            '<p class="auth-troca">Não tem conta? <button type="button" data-view="criar">Criar conta</button></p>'
+        };
+      }
+
+      function pintar(v) {
+        view = v;
+        var cfg = configView(v);
+        $('modal-titulo').textContent = cfg.titulo;
+        $('modal-corpo').innerHTML = cfg.corpo;
+        var ok = $('modal-ok'); ok.textContent = cfg.ok; ok.removeAttribute('data-txt'); ok.disabled = false; ocupado = false;
+        atualizarIcones();
+        var foco = $('auth-nome') || $('modal-input') || ok; foco.focus();
+      }
+
+      function ligarCliques() {
+        var c = $('modal-corpo');
+        if (c._authLigado) return;
+        c._authLigado = true;
+        c.addEventListener('click', function (e) {
+          var b = e.target.closest('[data-view],[data-acao]');
+          if (!b) return;
+          if (b.dataset.view) { pintar(b.dataset.view); return; }
+          var a = b.dataset.acao;
+          if (a === 'fechar') { fecharModal(); }
+          else if (a === 'ver') {
+            var campos = c.querySelectorAll('.auth-pw');
+            var mostrar = campos.length && campos[0].type === 'password';
+            campos.forEach(function (f) { f.type = mostrar ? 'text' : 'password'; });
+            c.querySelectorAll('.auth-olho').forEach(function (o) { o.innerHTML = '<i data-lucide="' + (mostrar ? 'eye-off' : 'eye') + '"></i>'; });
+            atualizarIcones();
+          } else if (a === 'sair') { sair(); }
+          else if (a === 'aprovar') { decidir(b.dataset.id, 'aprovado'); }
+          else if (a === 'recusar') { decidir(b.dataset.id, 'recusado'); }
+        });
+      }
+
+      function abrirAuth(inicial) {
+        ligarCliques();
+        var v = inicial || (estado === 'pendente' ? 'pendente' : estado === 'recusado' ? 'recusado' : (estado === 'indisponivel' ? 'indisponivel' : 'entrar'));
+        var cfg = configView(v);
+        view = v;
+        abrirModal({ titulo: cfg.titulo, corpo: cfg.corpo, okLabel: cfg.ok, tipo: 'auth', visual: 'login', aoEnviar: enviar });
+        var primeiro = $('auth-nome'); if (primeiro) primeiro.focus();
+        atualizarIcones();
+      }
+
+      function enviar() {
+        if (ocupado) return;
+        if (view === 'criar') return criarSubmit();
+        if (view === 'pendente' || view === 'recusado') return verificarSubmit();
+        if (view === 'confirmar') return pintar('entrar');
+        if (view === 'indisponivel') { location.reload(); return; }
+        return entrarSubmit();
+      }
+
+      function abrirSecao() {
+        var s = $('secao-turma');
+        if (s && s.classList.contains('hidden')) toggleSecaoTurma();
+      }
+
+      function depoisDeAutenticar() {
+        if (estado === 'liberado') { fecharModal(); abrirSecao(); }
+        else if (estado === 'pendente') pintar('pendente');
+        else if (estado === 'recusado') pintar('recusado');
+        else msg('Não consegui verificar sua conta agora. Tente de novo.', 'erro');
+      }
+
+      async function entrarSubmit() {
+        var email = $('modal-input').value.trim().toLowerCase();
+        var senha = $('auth-senha').value;
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return erroCampo('Digite um e-mail válido.', 'modal-input');
+        if (!senha) return erroCampo('Digite a senha.', 'auth-senha');
+        try { localStorage.setItem(CHAVE_MANTER, $('auth-manter').checked ? '1' : '0'); } catch (e) { /* ignora */ }
+        ocupar(true);
+        var r = await sb.auth.signInWithPassword({ email: email, password: senha });
+        if (r.error) { ocupar(false); msg(traduzir(r.error), 'erro'); return; }
+        sessao = r.data.session;
+        await sincronizar();
+        ocupar(false);
+        depoisDeAutenticar();
+      }
+
+      async function criarSubmit() {
+        var nome = $('auth-nome').value.trim().replace(/\s+/g, ' ');
+        var email = $('modal-input').value.trim().toLowerCase();
+        var s1 = $('auth-senha').value, s2 = $('auth-senha2').value;
+        if (nome.length < 3) return erroCampo('Digite seu nome completo.', 'auth-nome');
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return erroCampo('Digite um e-mail válido.', 'modal-input');
+        if (s1.length < 8) return erroCampo('A senha precisa ter pelo menos 8 caracteres.', 'auth-senha');
+        if (s1 !== s2) return erroCampo('As senhas não são iguais.', 'auth-senha2');
+        try { localStorage.setItem(CHAVE_MANTER, '0'); } catch (e) { /* ignora */ }
+        ocupar(true);
+        var r = await sb.auth.signUp({ email: email, password: s1, options: { data: { nome: nome } } });
+        if (r.error) { ocupar(false); msg(traduzir(r.error), 'erro'); return; }
+        if (r.data && r.data.user && r.data.user.identities && r.data.user.identities.length === 0) {
+          ocupar(false); msg('Este e-mail já tem conta. Use a aba Entrar.', 'erro'); return;
+        }
+        if (r.data && r.data.session) {
+          sessao = r.data.session;
+          await sincronizar();
+          ocupar(false);
+          depoisDeAutenticar();
+        } else {
+          ocupar(false); pintar('confirmar');
+        }
+      }
+
+      async function verificarSubmit() {
+        ocupar(true);
+        if (!sessao) { var g = await sb.auth.getSession(); sessao = g.data && g.data.session; }
+        await sincronizar();
+        ocupar(false);
+        if (estado === 'liberado') { fecharModal(); abrirSecao(); }
+        else if (estado === 'recusado') { pintar('recusado'); msg('Este acesso ainda não foi liberado.', 'erro'); }
+        else if (estado === 'pendente') msg('Ainda aguardando a aprovação da coordenação.', 'info');
+        else msg('Não consegui verificar agora. Tente de novo.', 'erro');
+      }
+
+      async function sair() {
+        if (liberado() && (sujo || salvando)) {
+          await salvarNuvem();
+          for (var i = 0; salvando && i < 20; i++) await new Promise(function (r) { setTimeout(r, 150); });
+          if (sujo) {
+            liberarBotao();
+            var seguir = await abrirModal({
+              titulo: 'Sair mesmo assim?', okLabel: 'Sair', danger: true, tipo: 'confirm',
+              corpo: '<p class="confirm-msg">Há alterações que ainda <strong>não foram salvas</strong> na conta. Se sair agora, elas serão perdidas.</p>'
+            });
+            if (seguir !== true) return;
+          }
+        }
+        if (sb) await sb.auth.signOut();
+        sessao = null;
+        await sincronizar();
+        fecharModal();
+        mostrarToast('Você saiu da conta.');
+      }
+
+      /* ---------- Aprovação de acessos (só coordenação) ---------- */
+      function atualizarBadge() {
+        var b = $('aprov-badge'); if (!b) return;
+        b.textContent = pendentes > 0 ? String(pendentes) : '';
+        b.classList.toggle('hidden', pendentes === 0);
+      }
+
+      async function contarPendentes() {
+        var r = await sb.from('perfis').select('id', { count: 'exact', head: true }).eq('status', 'pendente');
+        if (!r.error) { pendentes = r.count || 0; atualizarBadge(); }
+      }
+
+      var ROTULO = { pendente: 'Pendente', aprovado: 'Aprovado', recusado: 'Sem acesso' };
+
+      function linhaPerfil(p, meuId) {
+        var eu = p.id === meuId;
+        var acoes = '';
+        if (!eu && !p.admin) {
+          if (p.status !== 'aprovado') acoes += '<button type="button" class="btn btn-small btn-solid" data-acao="aprovar" data-id="' + esc(p.id) + '">Aprovar</button>';
+          if (p.status !== 'recusado') acoes += '<button type="button" class="btn btn-small" data-acao="recusar" data-id="' + esc(p.id) + '">' + (p.status === 'aprovado' ? 'Remover acesso' : 'Recusar') + '</button>';
+        }
+        var rotulo = eu ? 'Você' : (p.admin ? 'Coordenação' : ROTULO[p.status] || p.status);
+        return '<div class="aprov-item"><div class="aprov-quem"><strong>' + esc(p.nome || '(sem nome)') + '</strong><small>' + esc(p.email) + '</small></div>' +
+          '<span class="aprov-status st-' + esc(p.status) + '">' + esc(rotulo) + '</span><div class="aprov-acoes">' + acoes + '</div></div>';
+      }
+
+      async function carregarLista() {
+        var box = $('aprov-lista'); if (!box) return;
+        var r = await sb.from('perfis').select('id,nome,email,status,admin,criado_em').order('criado_em', { ascending: false });
+        if (r.error) { box.innerHTML = '<p class="modal-hint">Não foi possível carregar a lista.</p>'; return; }
+        var peso = { pendente: 0, aprovado: 1, recusado: 2 };
+        var lista = r.data.slice().sort(function (a, b) { return (peso[a.status] - peso[b.status]) || 0; });
+        pendentes = lista.filter(function (p) { return p.status === 'pendente'; }).length; atualizarBadge();
+        var meu = sessao && sessao.user ? sessao.user.id : '';
+        box.innerHTML = lista.length ? lista.map(function (p) { return linhaPerfil(p, meu); }).join('') : '<p class="modal-hint">Nenhum cadastro ainda.</p>';
+      }
+
+      function abrirAprovacoes() {
+        if (!liberado() || !perfil || !perfil.admin) return;
+        ligarCliques();
+        abrirModal({
+          titulo: 'Aprovação de acessos', okLabel: 'Fechar', tipo: 'auth', escondeCancelar: true,
+          aoEnviar: function () { fecharModal(); },
+          corpo: '<p class="auth-intro">Aprove só quem você conhece. Quem for aprovado passa a ver e editar as próprias turmas.</p><div id="aprov-lista" class="aprov-lista"><p class="modal-hint">Carregando…</p></div>'
+        });
+        carregarLista();
+      }
+
+      async function decidir(id, novo) {
+        if (!liberado() || !perfil || !perfil.admin || !id) return;
+        var r = await sb.from('perfis').update({ status: novo }).eq('id', id).select('id');
+        if (r.error || !r.data || !r.data.length) mostrarToast('Não foi possível atualizar este acesso.', 'erro');
+        else mostrarToast(novo === 'aprovado' ? 'Acesso aprovado.' : 'Acesso removido.');
+        carregarLista();
+      }
+
+      /* ---------- Barra da conta (dentro da área de turmas) ---------- */
+      function atualizarUI() {
+        var ok = liberado();
+        var barra = $('conta-barra');
+        if (barra) {
+          barra.classList.toggle('hidden', !ok);
+          if (ok && perfil) {
+            var nome = perfil.nome || (sessao && sessao.user && sessao.user.email) || '';
+            $('conta-nome').textContent = nome;
+            $('conta-email').textContent = perfil.email || '';
+            $('conta-inicial').textContent = (nome.trim().charAt(0) || '?').toUpperCase();
+            var bt = $('btn-aprovacoes'); if (bt) bt.classList.toggle('hidden', !perfil.admin);
+            if (!sujo && !salvando) marcar('salvo');
+          }
+        }
+        if (!ok) {
+          var s = $('secao-turma');
+          if (s && !s.classList.contains('hidden')) { s.classList.add('hidden'); var bt2 = $('btn-turma'); if (bt2) bt2.classList.add('btn-solid'); }
+        }
+      }
+
+      /* ---------- Início ---------- */
+      function iniciar() {
+        if (!window.supabase || !window.supabase.createClient) { estado = 'indisponivel'; atualizarUI(); return; }
+        sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+          auth: { storage: armazem, storageKey: 'boletim-auth', persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+        });
+        sb.auth.onAuthStateChange(function (evento, s) {
+          sessao = s;
+          if (evento === 'INITIAL_SESSION' || evento === 'SIGNED_IN' || evento === 'SIGNED_OUT' || evento === 'USER_UPDATED') {
+            setTimeout(sincronizar, 0); // nunca chamar o Supabase direto de dentro deste callback
+          }
+        });
+      }
+
+      window.addEventListener('beforeunload', function (e) {
+        if (liberado() && (sujo || salvando)) { e.preventDefault(); e.returnValue = ''; }
+      });
+      document.addEventListener('visibilitychange', function () {
+        if (document.hidden && liberado() && sujo) salvarNuvem();
+      });
+
+      window.Nuvem = { liberado: liberado, agendar: agendar, abrirAuth: abrirAuth, abrirAprovacoes: abrirAprovacoes, sair: sair };
+
+      if (document.readyState === 'complete') iniciar();
+      else window.addEventListener('load', iniciar);
     })();
   </script>
 </body>
