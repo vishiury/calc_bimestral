@@ -2033,12 +2033,6 @@
     .historico-item-info strong { color: var(--ink); font-size: 13.5px; }
     .historico-item-info small { color: var(--ink-faint); font-size: 12px; }
     .historico-item .btn { flex: 0 0 auto; }
-    .mfa-painel { width: 100%; padding: 14px; border: 1px solid var(--l-line, var(--line)); border-radius: 14px; background: var(--l-aviso-bg, var(--card-2)); color: var(--l-text, var(--ink)); }
-    .mfa-painel p { color: var(--l-mute, var(--ink-mute)); font-size: 13px; line-height: 1.5; }
-    .mfa-qr { display: block; width: min(230px, 100%); height: auto; margin: 12px auto; padding: 10px; border-radius: 12px; background: #fff; border: 1px solid var(--line); }
-    .mfa-segredo { display: block; margin-top: 7px; padding: 10px; border-radius: 9px; background: var(--l-field, var(--card-3)); color: var(--l-text, var(--ink)); font: 600 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; overflow-wrap: anywhere; user-select: all; }
-    .mfa-codigo { width: 100%; padding: 13px 16px; margin-top: 8px; border: 1px solid var(--l-line, var(--line)); border-radius: 12px; background: var(--l-field, var(--card-2)); color: var(--l-text, var(--ink)); text-align: center; letter-spacing: .35em; font: 700 21px/1.3 ui-monospace, SFMono-Regular, Consolas, monospace; }
-    .mfa-codigo:focus { outline: 2px solid var(--l-ring, var(--primary)); outline-offset: 1px; }
     .auth-readonly { opacity: .78; cursor: not-allowed; }
     @media (max-width: 640px) {
       .conta-acoes .btn-label { display: none; }
@@ -5201,7 +5195,6 @@
       var view = 'entrar', ocupado = false;
       var syncPromise = null, syncAgain = false;
       var pendentes = 0;
-      var mfaFactorId = null, mfaQr = '', mfaSecret = '';
 
       function $(id) { return document.getElementById(id); }
       function liberado() { return estado === 'liberado' && pronto; }
@@ -5260,25 +5253,6 @@
         return syncPromise;
       }
 
-      async function verificarMFAAdmin() {
-        if (!sb || !sb.auth.mfa) return 'erro';
-        var f = await sb.auth.mfa.listFactors();
-        if (f.error) return 'erro';
-        var totps = (f.data && f.data.totp) || [];
-        var verificado = totps.filter(function (x) { return x.status === 'verified'; });
-        if (!verificado.length) { mfaFactorId = null; return 'setup'; }
-        mfaFactorId = verificado[0].id;
-        var a = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
-        if (a.error || !a.data) return 'erro';
-        return a.data.currentLevel === 'aal2' ? 'ok' : 'desafio';
-      }
-
-      function mostrarTelaProtecao(v) {
-        var overlay = $('overlay');
-        if (overlay && !overlay.classList.contains('hidden')) pintar(v);
-        else abrirAuth(v);
-      }
-
       async function sincronizarUma() {
         if (!sb) return;
         var s = sessao;
@@ -5289,16 +5263,6 @@
         perfil = r.data || { id: uid, nome: '', email: s.user.email || '', status: 'pendente', admin: false };
 
         if (perfil.status === 'aprovado') {
-          if (perfil.admin) {
-            var protecao = await verificarMFAAdmin();
-            if (protecao !== 'ok') {
-              encerrarLocal();
-              estado = 'mfa';
-              atualizarUI();
-              mostrarTelaProtecao(protecao === 'setup' ? 'mfa-obrigatorio' : (protecao === 'desafio' ? 'mfa-desafio' : 'mfa-erro'));
-              return;
-            }
-          }
           if (!(pronto && uidCarregado === uid)) {
             var ok = await carregarNuvem(uid);
             if (!ok) { estado = 'erro'; atualizarUI(); return; }
@@ -5471,37 +5435,10 @@
               campoTexto('auth-nome', 'text', 'Nome de exibição', 'name', 80, perfil ? perfil.nome : '') +
               '<label style="display:block;width:100%;font-size:12px;color:var(--l-faint);font-weight:600;margin-top:3px">E-mail da conta</label>' +
               '<input class="auth-input auth-readonly" type="email" aria-label="E-mail da conta" value="' + esc(perfil && perfil.email || (sessao && sessao.user && sessao.user.email) || '') + '" readonly>' +
-              (perfil && perfil.admin ? '<div class="mfa-painel"><strong>Segurança da coordenação</strong><p>Autenticação em duas etapas obrigatória. Sua sessão atual está validada com segundo fator (AAL2).</p></div>' : '<div class="mfa-painel"><strong>Acesso protegido</strong><p>Seu acesso depende da aprovação da coordenação e das permissões individuais da sua conta.</p></div>') +
+              '<div class="auth-info"><strong>Acesso protegido</strong><p>Seu acesso depende da aprovação da coordenação e das permissões individuais da sua conta.</p></div>' +
               '<p id="auth-msg" class="auth-msg" role="alert"></p>' +
             '</div>' +
             '<p class="auth-troca"><button type="button" data-acao="enviar-reset">Enviar link para alterar minha senha</button></p>'
-        };
-        if (v === 'mfa-obrigatorio') return {
-          titulo: 'Proteja a conta da coordenação', ok: 'Configurar agora',
-          corpo: cabecalho('Antes de continuar, configure a autenticação em duas etapas') +
-            aviso('shield-check', 'Segundo fator obrigatório', 'Use um aplicativo autenticador, como Google Authenticator, Microsoft Authenticator ou Authy. Você vai escanear um QR Code e confirmar um código de 6 dígitos.') + SAIR_LINK
-        };
-        if (v === 'mfa-enroll') return {
-          titulo: 'Ativar autenticação em duas etapas', ok: 'Confirmar código',
-          corpo: cabecalho('Escaneie o QR Code no aplicativo autenticador') +
-            '<div class="auth-campos"><div class="mfa-painel"><p>1. Abra o aplicativo autenticador no celular e escaneie este QR Code.</p>' +
-            '<img class="mfa-qr" alt="QR Code para configurar autenticação em duas etapas" src="' + esc(mfaQr) + '">' +
-            '<p>2. Se não conseguir escanear, digite esta chave manualmente:</p><code class="mfa-segredo">' + esc(mfaSecret) + '</code>' +
-            '<p style="margin-top:12px">3. Digite abaixo o código atual de 6 dígitos para confirmar a configuração.</p></div>' +
-            '<input id="auth-mfa-code" class="mfa-codigo" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" aria-label="Código de seis dígitos" placeholder="000000">' +
-            '<p id="auth-msg" class="auth-msg" role="alert"></p></div>' + SAIR_LINK
-        };
-        if (v === 'mfa-desafio') return {
-          titulo: 'Verificação de segurança', ok: 'Verificar código',
-          corpo: cabecalho('A conta da coordenação precisa de uma confirmação adicional') +
-            '<div class="auth-campos"><div class="mfa-painel"><strong>Abra seu aplicativo autenticador</strong><p>Digite o código de 6 dígitos exibido para esta conta. Ele muda periodicamente.</p></div>' +
-            '<input id="auth-mfa-code" class="mfa-codigo" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" aria-label="Código de seis dígitos" placeholder="000000">' +
-            '<p id="auth-msg" class="auth-msg" role="alert"></p></div>' + SAIR_LINK
-        };
-        if (v === 'mfa-erro') return {
-          titulo: 'Não foi possível verificar a segurança', ok: 'Tentar novamente',
-          corpo: cabecalho('Não consegui consultar a autenticação em duas etapas') +
-            aviso('alert-triangle', 'Acesso administrativo bloqueado', 'Por segurança, a coordenação não será liberada até que a verificação do segundo fator funcione. Confira sua conexão e tente novamente.') + SAIR_LINK
         };
         if (v === 'senhaAtualizada') return {
           titulo: 'Senha alterada', ok: 'Ir para entrar',
@@ -5586,56 +5523,6 @@
         abrirModal({ titulo: cfg.titulo, corpo: cfg.corpo, okLabel: cfg.ok, tipo: 'auth', visual: 'login', aoEnviar: enviar });
         var primeiro = $('auth-nome'); if (primeiro) primeiro.focus();
         atualizarIcones();
-      }
-
-      async function iniciarMFA() {
-        if (!perfil || !perfil.admin || !sb || !sb.auth.mfa) return;
-        ocupar(true);
-        var r = await sb.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Coordenação - Calculadora de Notas' });
-        ocupar(false);
-        if (r.error || !r.data || !r.data.totp) { msg(traduzir(r.error || 'Não foi possível iniciar a configuração.'), 'erro'); return; }
-        mfaFactorId = r.data.id;
-        mfaQr = r.data.totp.qr_code || '';
-        mfaSecret = r.data.totp.secret || '';
-        pintar('mfa-enroll');
-      }
-
-      async function confirmarMFAEnroll() {
-        var codigo = ($('auth-mfa-code').value || '').replace(/\s+/g, '');
-        if (!/^\d{6}$/.test(codigo)) return erroCampo('Digite o código de 6 dígitos do aplicativo.', 'auth-mfa-code');
-        if (!mfaFactorId) return msg('A configuração expirou. Recomece a ativação.', 'erro');
-        ocupar(true);
-        var c = await sb.auth.mfa.challenge({ factorId: mfaFactorId });
-        if (c.error) { ocupar(false); msg(traduzir(c.error), 'erro'); return; }
-        var r = await sb.auth.mfa.verify({ factorId: mfaFactorId, challengeId: c.data.id, code: codigo });
-        ocupar(false);
-        if (r.error) { msg('Código não confirmado. Confira o aplicativo e tente novamente.', 'erro'); return; }
-        var atual = await sb.auth.getSession();
-        sessao = atual.data && atual.data.session || sessao;
-        await sincronizar();
-        if (liberado()) { fecharModal(); abrirSecao(); mostrarToast('Autenticação em duas etapas ativada.'); }
-        else msg('O segundo fator foi confirmado, mas ainda não consegui liberar a sessão. Tente verificar novamente.', 'erro');
-      }
-
-      async function confirmarMFADesafio() {
-        var codigo = ($('auth-mfa-code').value || '').replace(/\s+/g, '');
-        if (!/^\d{6}$/.test(codigo)) return erroCampo('Digite o código de 6 dígitos do aplicativo.', 'auth-mfa-code');
-        if (!mfaFactorId) {
-          var f = await sb.auth.mfa.listFactors();
-          var lista = f.data && f.data.totp || [];
-          var ativo = lista.find(function (x) { return x.status === 'verified'; });
-          mfaFactorId = ativo && ativo.id;
-        }
-        if (!mfaFactorId) { pintar('mfa-obrigatorio'); return; }
-        ocupar(true);
-        var r = await sb.auth.mfa.challengeAndVerify({ factorId: mfaFactorId, code: codigo });
-        ocupar(false);
-        if (r.error) { msg('Código incorreto ou expirado. Confira o aplicativo e tente novamente.', 'erro'); return; }
-        var atual = await sb.auth.getSession();
-        sessao = atual.data && atual.data.session || sessao;
-        await sincronizar();
-        if (liberado()) { fecharModal(); abrirSecao(); mostrarToast('Verificação concluída.'); }
-        else msg('Não consegui confirmar a sessão com segundo fator. Tente novamente.', 'erro');
       }
 
       async function salvarPerfil() {
@@ -5735,10 +5622,6 @@
         if (view === 'esqueci') return recuperarSubmit();
         if (view === 'redefinir') return redefinirSubmit();
         if (view === 'perfil') return salvarPerfil();
-        if (view === 'mfa-obrigatorio') return iniciarMFA();
-        if (view === 'mfa-enroll') return confirmarMFAEnroll();
-        if (view === 'mfa-desafio') return confirmarMFADesafio();
-        if (view === 'mfa-erro') return sincronizar();
         if (view === 'senhaAtualizada' || view === 'confirmar') return pintar('entrar');
         if (view === 'pendente' || view === 'recusado') return verificarSubmit();
         if (view === 'indisponivel') { location.reload(); return; }
@@ -5754,7 +5637,6 @@
         if (estado === 'liberado') { fecharModal(); abrirSecao(); }
         else if (estado === 'pendente') pintar('pendente');
         else if (estado === 'recusado') pintar('recusado');
-        else if (estado === 'mfa') return; // a tela de segundo fator já está aberta
         else msg('Não consegui verificar sua conta agora. Tente de novo.', 'erro');
       }
 
