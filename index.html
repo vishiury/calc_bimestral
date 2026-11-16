@@ -5390,6 +5390,29 @@
             '</div>' +
             '<p class="auth-troca">Já tem conta? <button type="button" data-view="entrar">Entrar</button></p>'
         };
+        if (v === 'esqueci') return {
+          titulo: 'Recuperar senha', ok: 'Enviar link',
+          corpo: cabecalho('Informe seu e-mail para receber um link de recuperação') +
+            '<div class="auth-campos">' +
+              campoTexto('modal-input', 'email', 'E-mail da conta', 'email', 120) +
+              '<p id="auth-msg" class="auth-msg" role="alert"></p>' +
+            '</div>' +
+            '<p class="auth-troca"><button type="button" data-view="entrar">Voltar para entrar</button></p>'
+        };
+        if (v === 'redefinir') return {
+          titulo: 'Criar nova senha', ok: 'Salvar nova senha',
+          corpo: cabecalho('Escolha uma nova senha para sua conta') +
+            '<div class="auth-campos">' +
+              campoSenha('auth-senha', 'Nova senha (mínimo 8 caracteres)', 'new-password') +
+              campoSenha('auth-senha2', 'Repita a nova senha', 'new-password') +
+              '<p id="auth-msg" class="auth-msg" role="alert"></p>' +
+            '</div>'
+        };
+        if (v === 'senhaAtualizada') return {
+          titulo: 'Senha alterada', ok: 'Ir para entrar',
+          corpo: cabecalho('Sua senha foi atualizada') +
+            aviso('check-circle', 'Tudo certo!', 'Agora você pode entrar usando sua nova senha.')
+        };
         if (v === 'confirmar') return {
           titulo: 'Confirme seu e-mail', ok: 'Ir para Entrar',
           corpo: cabecalho('Confirme seu e-mail') +
@@ -5421,6 +5444,7 @@
               '<label class="auth-check"><input type="checkbox" id="auth-manter"' + (manter() ? ' checked' : '') + '> Manter conectado neste aparelho</label>' +
               '<p id="auth-msg" class="auth-msg" role="alert"></p>' +
             '</div>' +
+            '<p class="auth-troca"><button type="button" data-view="esqueci">Esqueci minha senha</button></p>' +
             '<p class="auth-troca">Não tem conta? <button type="button" data-view="criar">Criar conta</button></p>'
         };
       }
@@ -5470,8 +5494,10 @@
       function enviar() {
         if (ocupado) return;
         if (view === 'criar') return criarSubmit();
+        if (view === 'esqueci') return recuperarSubmit();
+        if (view === 'redefinir') return redefinirSubmit();
+        if (view === 'senhaAtualizada' || view === 'confirmar') return pintar('entrar');
         if (view === 'pendente' || view === 'recusado') return verificarSubmit();
-        if (view === 'confirmar') return pintar('entrar');
         if (view === 'indisponivel') { location.reload(); return; }
         return entrarSubmit();
       }
@@ -5501,6 +5527,30 @@
         await sincronizar();
         ocupar(false);
         depoisDeAutenticar();
+      }
+
+      async function recuperarSubmit() {
+        var email = $('modal-input').value.trim().toLowerCase();
+        if (!/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email)) return erroCampo('Digite um e-mail válido.', 'modal-input');
+        ocupar(true);
+        var destino = window.location.origin + window.location.pathname;
+        var r = await sb.auth.resetPasswordForEmail(email, { redirectTo: destino });
+        ocupar(false);
+        if (r.error) { msg(traduzir(r.error), 'erro'); return; }
+        msg('Se esse e-mail estiver cadastrado, você receberá um link para criar uma nova senha. Verifique também o spam.', 'sucesso');
+      }
+
+      async function redefinirSubmit() {
+        var s1 = $('auth-senha').value, s2 = $('auth-senha2').value;
+        if (s1.length < 8) return erroCampo('A senha precisa ter pelo menos 8 caracteres.', 'auth-senha');
+        if (s1 !== s2) return erroCampo('As senhas não são iguais.', 'auth-senha2');
+        ocupar(true);
+        var r = await sb.auth.updateUser({ password: s1 });
+        ocupar(false);
+        if (r.error) { msg(traduzir(r.error), 'erro'); return; }
+        await sb.auth.signOut();
+        sessao = null;
+        pintar('senhaAtualizada');
       }
 
       async function criarSubmit() {
@@ -5640,10 +5690,14 @@
       function iniciar() {
         if (!window.supabase || !window.supabase.createClient) { estado = 'indisponivel'; atualizarUI(); return; }
         sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-          auth: { storage: armazem, storageKey: 'boletim-auth', persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+          auth: { storage: armazem, storageKey: 'boletim-auth', persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
         });
         sb.auth.onAuthStateChange(function (evento, s) {
           sessao = s;
+          if (evento === 'PASSWORD_RECOVERY') {
+            setTimeout(function () { abrirAuth('redefinir'); }, 0);
+            return;
+          }
           if (evento === 'INITIAL_SESSION' || evento === 'SIGNED_IN' || evento === 'SIGNED_OUT' || evento === 'USER_UPDATED') {
             setTimeout(sincronizar, 0); // nunca chamar o Supabase direto de dentro deste callback
           }
