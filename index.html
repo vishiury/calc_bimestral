@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="Calculadora de notas bimestrais com simulador de média, boletim da turma e exportação em PDF. Os dados ficam salvos no seu navegador.">
+  <meta name="description" content="Calculadora de notas bimestrais com simulador de média, turmas, boletins protegidos por login e sincronização segura na nuvem.">
   <meta name="theme-color" content="#ece7e0" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#161616" media="(prefers-color-scheme: dark)">
     <!-- Favicons gerados pelo favicon.io -->
@@ -2027,6 +2027,24 @@
       display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 4px;
       border-radius: 999px; background: var(--primary); color: #fff; font-size: 11px; font-weight: 800;
     }
+    .historico-lista { display: flex; flex-direction: column; gap: 9px; max-height: min(58vh, 460px); overflow-y: auto; }
+    .historico-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--card-2); }
+    .historico-item-info { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+    .historico-item-info strong { color: var(--ink); font-size: 13.5px; }
+    .historico-item-info small { color: var(--ink-faint); font-size: 12px; }
+    .historico-item .btn { flex: 0 0 auto; }
+    .mfa-painel { width: 100%; padding: 14px; border: 1px solid var(--l-line, var(--line)); border-radius: 14px; background: var(--l-aviso-bg, var(--card-2)); color: var(--l-text, var(--ink)); }
+    .mfa-painel p { color: var(--l-mute, var(--ink-mute)); font-size: 13px; line-height: 1.5; }
+    .mfa-qr { display: block; width: min(230px, 100%); height: auto; margin: 12px auto; padding: 10px; border-radius: 12px; background: #fff; border: 1px solid var(--line); }
+    .mfa-segredo { display: block; margin-top: 7px; padding: 10px; border-radius: 9px; background: var(--l-field, var(--card-3)); color: var(--l-text, var(--ink)); font: 600 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; overflow-wrap: anywhere; user-select: all; }
+    .mfa-codigo { width: 100%; padding: 13px 16px; margin-top: 8px; border: 1px solid var(--l-line, var(--line)); border-radius: 12px; background: var(--l-field, var(--card-2)); color: var(--l-text, var(--ink)); text-align: center; letter-spacing: .35em; font: 700 21px/1.3 ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .mfa-codigo:focus { outline: 2px solid var(--l-ring, var(--primary)); outline-offset: 1px; }
+    .auth-readonly { opacity: .78; cursor: not-allowed; }
+    @media (max-width: 640px) {
+      .conta-acoes .btn-label { display: none; }
+      .historico-item { align-items: flex-start; flex-direction: column; }
+      .historico-item .btn { width: 100%; justify-content: center; }
+    }
 
     .aprov-lista { display: flex; flex-direction: column; gap: 8px; max-height: min(52vh, 420px); overflow-y: auto; }
     .aprov-item {
@@ -2345,9 +2363,15 @@
       <span class="conta-salvo" id="conta-salvo" role="status"></span>
       <div class="conta-acoes">
         <button class="btn btn-small hidden" id="btn-aprovacoes" onclick="Nuvem.abrirAprovacoes()">
-          <i data-lucide="user-check"></i> Aprovações <span class="badge hidden" id="aprov-badge"></span>
+          <i data-lucide="user-check"></i> <span class="btn-label">Aprovações</span> <span class="badge hidden" id="aprov-badge"></span>
         </button>
-        <button class="btn btn-small" onclick="Nuvem.sair()"><i data-lucide="log-out"></i> Sair</button>
+        <button class="btn btn-small" onclick="Nuvem.verHistorico()" title="Histórico de alterações">
+          <i data-lucide="history"></i> <span class="btn-label">Histórico</span>
+        </button>
+        <button class="btn btn-small" onclick="Nuvem.abrirPerfil()" title="Minha conta e segurança">
+          <i data-lucide="user-round-cog"></i> <span class="btn-label">Minha conta</span>
+        </button>
+        <button class="btn btn-small" onclick="Nuvem.sair()"><i data-lucide="log-out"></i> <span class="btn-label">Sair</span></button>
       </div>
     </div>
 
@@ -2545,7 +2569,7 @@
         <div class="sheet-head">
           <span class="label label-icon"><i data-lucide="database-backup"></i> Dados &amp; backup</span>
         </div>
-        <p class="backup-hint">Tudo fica salvo apenas neste navegador. Exporte um arquivo de backup para guardar uma cópia — ou para levar os dados para outro dispositivo.</p>
+        <p class="backup-hint">Exporte uma cópia JSON da calculadora e, quando estiver conectado, também das turmas, alunos e notas carregados na sua conta. Guarde o arquivo em local seguro. No plano gratuito do Supabase não há backup diário automático; esta cópia ajuda na recuperação, mas não substitui um backup completo do banco.</p>
         <div class="backup-acoes">
           <button class="btn btn-small" onclick="exportarBackup()">
             <i data-lucide="download"></i> Exportar backup
@@ -3947,6 +3971,7 @@
         app: 'boletim-notas',
         versao: 1,
         exportadoEm: new Date().toISOString(),
+        origem: (window.Nuvem && window.Nuvem.liberado()) ? 'conta_supabase' : 'navegador',
         dados: clonar(appData)
       };
       baixarArquivo(JSON.stringify(payload, null, 2), 'application/json', `backup-boletim-${new Date().toISOString().slice(0, 10)}.json`);
@@ -5176,6 +5201,7 @@
       var view = 'entrar', ocupado = false;
       var syncPromise = null, syncAgain = false;
       var pendentes = 0;
+      var mfaFactorId = null, mfaQr = '', mfaSecret = '';
 
       function $(id) { return document.getElementById(id); }
       function liberado() { return estado === 'liberado' && pronto; }
@@ -5200,7 +5226,7 @@
         if (m.indexOf('already registered') > -1 || m.indexOf('already been registered') > -1) return 'Este e-mail já tem conta. Use a aba Entrar.';
         if (m.indexOf('email not confirmed') > -1) return 'Confirme seu e-mail (veja a caixa de entrada) antes de entrar.';
         if (m.indexOf('rate limit') > -1 || m.indexOf('too many') > -1 || (err && err.status === 429)) return 'Muitas tentativas. Aguarde alguns minutos e tente de novo.';
-        if (m.indexOf('password') > -1) return 'Senha fraca ou curta. Use pelo menos 8 caracteres.';
+        if (m.indexOf('password') > -1) return 'Senha fraca ou curta. Use pelo menos 12 caracteres.';
         if (m.indexOf('failed to fetch') > -1 || m.indexOf('network') > -1) return 'Sem conexão com o servidor. Verifique a internet.';
         return 'Não foi possível concluir. Tente de novo em instantes.';
       }
@@ -5234,6 +5260,25 @@
         return syncPromise;
       }
 
+      async function verificarMFAAdmin() {
+        if (!sb || !sb.auth.mfa) return 'erro';
+        var f = await sb.auth.mfa.listFactors();
+        if (f.error) return 'erro';
+        var totps = (f.data && f.data.totp) || [];
+        var verificado = totps.filter(function (x) { return x.status === 'verified'; });
+        if (!verificado.length) { mfaFactorId = null; return 'setup'; }
+        mfaFactorId = verificado[0].id;
+        var a = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (a.error || !a.data) return 'erro';
+        return a.data.currentLevel === 'aal2' ? 'ok' : 'desafio';
+      }
+
+      function mostrarTelaProtecao(v) {
+        var overlay = $('overlay');
+        if (overlay && !overlay.classList.contains('hidden')) pintar(v);
+        else abrirAuth(v);
+      }
+
       async function sincronizarUma() {
         if (!sb) return;
         var s = sessao;
@@ -5244,6 +5289,16 @@
         perfil = r.data || { id: uid, nome: '', email: s.user.email || '', status: 'pendente', admin: false };
 
         if (perfil.status === 'aprovado') {
+          if (perfil.admin) {
+            var protecao = await verificarMFAAdmin();
+            if (protecao !== 'ok') {
+              encerrarLocal();
+              estado = 'mfa';
+              atualizarUI();
+              mostrarTelaProtecao(protecao === 'setup' ? 'mfa-obrigatorio' : (protecao === 'desafio' ? 'mfa-desafio' : 'mfa-erro'));
+              return;
+            }
+          }
           if (!(pronto && uidCarregado === uid)) {
             var ok = await carregarNuvem(uid);
             if (!ok) { estado = 'erro'; atualizarUI(); return; }
@@ -5362,9 +5417,10 @@
           '<h2 class="auth-titulo">' + esc(nome) + '</h2>' +
           '<p class="auth-sub">' + esc(sub) + '</p>';
       }
-      function campoTexto(id, tipo, rotulo, auto, max) {
+      function campoTexto(id, tipo, rotulo, auto, max, valor) {
+        var valorAttr = valor === undefined || valor === null ? '' : ' value="' + esc(valor) + '"';
         return '<input id="' + id + '" class="auth-input" type="' + tipo + '" placeholder="' + rotulo + '" aria-label="' + rotulo +
-          '" autocomplete="' + auto + '" maxlength="' + max + '">';
+          '" autocomplete="' + auto + '" maxlength="' + max + '"' + valorAttr + '>';
       }
       function campoSenha(id, rotulo, auto) {
         return '<div class="auth-campo"><input id="' + id + '" class="auth-input auth-pw" type="password" placeholder="' + rotulo +
@@ -5384,7 +5440,7 @@
             '<div class="auth-campos">' +
               campoTexto('auth-nome', 'text', 'Nome completo', 'name', 80) +
               campoTexto('modal-input', 'email', 'E-mail', 'email', 120) +
-              campoSenha('auth-senha', 'Senha (mínimo 8 caracteres)', 'new-password') +
+              campoSenha('auth-senha', 'Senha (mínimo 12 caracteres)', 'new-password') +
               campoSenha('auth-senha2', 'Repita a senha', 'new-password') +
               '<p id="auth-msg" class="auth-msg" role="alert"></p>' +
             '</div>' +
@@ -5403,10 +5459,49 @@
           titulo: 'Criar nova senha', ok: 'Salvar nova senha',
           corpo: cabecalho('Escolha uma nova senha para sua conta') +
             '<div class="auth-campos">' +
-              campoSenha('auth-senha', 'Nova senha (mínimo 8 caracteres)', 'new-password') +
+              campoSenha('auth-senha', 'Nova senha (mínimo 12 caracteres)', 'new-password') +
               campoSenha('auth-senha2', 'Repita a nova senha', 'new-password') +
               '<p id="auth-msg" class="auth-msg" role="alert"></p>' +
             '</div>'
+        };
+        if (v === 'perfil') return {
+          titulo: 'Minha conta', ok: 'Salvar perfil',
+          corpo: cabecalho('Atualize seu nome e confira as opções de segurança') +
+            '<div class="auth-campos">' +
+              campoTexto('auth-nome', 'text', 'Nome de exibição', 'name', 80, perfil ? perfil.nome : '') +
+              '<label style="display:block;width:100%;font-size:12px;color:var(--l-faint);font-weight:600;margin-top:3px">E-mail da conta</label>' +
+              '<input class="auth-input auth-readonly" type="email" aria-label="E-mail da conta" value="' + esc(perfil && perfil.email || (sessao && sessao.user && sessao.user.email) || '') + '" readonly>' +
+              (perfil && perfil.admin ? '<div class="mfa-painel"><strong>Segurança da coordenação</strong><p>Autenticação em duas etapas obrigatória. Sua sessão atual está validada com segundo fator (AAL2).</p></div>' : '<div class="mfa-painel"><strong>Acesso protegido</strong><p>Seu acesso depende da aprovação da coordenação e das permissões individuais da sua conta.</p></div>') +
+              '<p id="auth-msg" class="auth-msg" role="alert"></p>' +
+            '</div>' +
+            '<p class="auth-troca"><button type="button" data-acao="enviar-reset">Enviar link para alterar minha senha</button></p>'
+        };
+        if (v === 'mfa-obrigatorio') return {
+          titulo: 'Proteja a conta da coordenação', ok: 'Configurar agora',
+          corpo: cabecalho('Antes de continuar, configure a autenticação em duas etapas') +
+            aviso('shield-check', 'Segundo fator obrigatório', 'Use um aplicativo autenticador, como Google Authenticator, Microsoft Authenticator ou Authy. Você vai escanear um QR Code e confirmar um código de 6 dígitos.') + SAIR_LINK
+        };
+        if (v === 'mfa-enroll') return {
+          titulo: 'Ativar autenticação em duas etapas', ok: 'Confirmar código',
+          corpo: cabecalho('Escaneie o QR Code no aplicativo autenticador') +
+            '<div class="auth-campos"><div class="mfa-painel"><p>1. Abra o aplicativo autenticador no celular e escaneie este QR Code.</p>' +
+            '<img class="mfa-qr" alt="QR Code para configurar autenticação em duas etapas" src="' + esc(mfaQr) + '">' +
+            '<p>2. Se não conseguir escanear, digite esta chave manualmente:</p><code class="mfa-segredo">' + esc(mfaSecret) + '</code>' +
+            '<p style="margin-top:12px">3. Digite abaixo o código atual de 6 dígitos para confirmar a configuração.</p></div>' +
+            '<input id="auth-mfa-code" class="mfa-codigo" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" aria-label="Código de seis dígitos" placeholder="000000">' +
+            '<p id="auth-msg" class="auth-msg" role="alert"></p></div>' + SAIR_LINK
+        };
+        if (v === 'mfa-desafio') return {
+          titulo: 'Verificação de segurança', ok: 'Verificar código',
+          corpo: cabecalho('A conta da coordenação precisa de uma confirmação adicional') +
+            '<div class="auth-campos"><div class="mfa-painel"><strong>Abra seu aplicativo autenticador</strong><p>Digite o código de 6 dígitos exibido para esta conta. Ele muda periodicamente.</p></div>' +
+            '<input id="auth-mfa-code" class="mfa-codigo" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" aria-label="Código de seis dígitos" placeholder="000000">' +
+            '<p id="auth-msg" class="auth-msg" role="alert"></p></div>' + SAIR_LINK
+        };
+        if (v === 'mfa-erro') return {
+          titulo: 'Não foi possível verificar a segurança', ok: 'Tentar novamente',
+          corpo: cabecalho('Não consegui consultar a autenticação em duas etapas') +
+            aviso('alert-triangle', 'Acesso administrativo bloqueado', 'Por segurança, a coordenação não será liberada até que a verificação do segundo fator funcione. Confira sua conexão e tente novamente.') + SAIR_LINK
         };
         if (v === 'senhaAtualizada') return {
           titulo: 'Senha alterada', ok: 'Ir para entrar',
@@ -5476,6 +5571,8 @@
             c.querySelectorAll('.auth-olho').forEach(function (o) { o.innerHTML = '<i data-lucide="' + (mostrar ? 'eye-off' : 'eye') + '"></i>'; });
             atualizarIcones();
           } else if (a === 'sair') { sair(); }
+          else if (a === 'enviar-reset') { enviarLinkSenha(); }
+          else if (a === 'restaurar-historico') { restaurarHistorico(b.dataset.id); }
           else if (a === 'aprovar') { decidir(b.dataset.id, 'aprovado'); }
           else if (a === 'recusar') { decidir(b.dataset.id, 'recusado'); }
         });
@@ -5491,11 +5588,157 @@
         atualizarIcones();
       }
 
+      async function iniciarMFA() {
+        if (!perfil || !perfil.admin || !sb || !sb.auth.mfa) return;
+        ocupar(true);
+        var r = await sb.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Coordenação - Calculadora de Notas' });
+        ocupar(false);
+        if (r.error || !r.data || !r.data.totp) { msg(traduzir(r.error || 'Não foi possível iniciar a configuração.'), 'erro'); return; }
+        mfaFactorId = r.data.id;
+        mfaQr = r.data.totp.qr_code || '';
+        mfaSecret = r.data.totp.secret || '';
+        pintar('mfa-enroll');
+      }
+
+      async function confirmarMFAEnroll() {
+        var codigo = ($('auth-mfa-code').value || '').replace(/\s+/g, '');
+        if (!/^\d{6}$/.test(codigo)) return erroCampo('Digite o código de 6 dígitos do aplicativo.', 'auth-mfa-code');
+        if (!mfaFactorId) return msg('A configuração expirou. Recomece a ativação.', 'erro');
+        ocupar(true);
+        var c = await sb.auth.mfa.challenge({ factorId: mfaFactorId });
+        if (c.error) { ocupar(false); msg(traduzir(c.error), 'erro'); return; }
+        var r = await sb.auth.mfa.verify({ factorId: mfaFactorId, challengeId: c.data.id, code: codigo });
+        ocupar(false);
+        if (r.error) { msg('Código não confirmado. Confira o aplicativo e tente novamente.', 'erro'); return; }
+        var atual = await sb.auth.getSession();
+        sessao = atual.data && atual.data.session || sessao;
+        await sincronizar();
+        if (liberado()) { fecharModal(); abrirSecao(); mostrarToast('Autenticação em duas etapas ativada.'); }
+        else msg('O segundo fator foi confirmado, mas ainda não consegui liberar a sessão. Tente verificar novamente.', 'erro');
+      }
+
+      async function confirmarMFADesafio() {
+        var codigo = ($('auth-mfa-code').value || '').replace(/\s+/g, '');
+        if (!/^\d{6}$/.test(codigo)) return erroCampo('Digite o código de 6 dígitos do aplicativo.', 'auth-mfa-code');
+        if (!mfaFactorId) {
+          var f = await sb.auth.mfa.listFactors();
+          var lista = f.data && f.data.totp || [];
+          var ativo = lista.find(function (x) { return x.status === 'verified'; });
+          mfaFactorId = ativo && ativo.id;
+        }
+        if (!mfaFactorId) { pintar('mfa-obrigatorio'); return; }
+        ocupar(true);
+        var r = await sb.auth.mfa.challengeAndVerify({ factorId: mfaFactorId, code: codigo });
+        ocupar(false);
+        if (r.error) { msg('Código incorreto ou expirado. Confira o aplicativo e tente novamente.', 'erro'); return; }
+        var atual = await sb.auth.getSession();
+        sessao = atual.data && atual.data.session || sessao;
+        await sincronizar();
+        if (liberado()) { fecharModal(); abrirSecao(); mostrarToast('Verificação concluída.'); }
+        else msg('Não consegui confirmar a sessão com segundo fator. Tente novamente.', 'erro');
+      }
+
+      async function salvarPerfil() {
+        var nome = ($('auth-nome').value || '').trim().replace(/\s+/g, ' ');
+        if (nome.length < 3) return erroCampo('Digite um nome com pelo menos 3 caracteres.', 'auth-nome');
+        ocupar(true);
+        var r = await sb.auth.updateUser({ data: { nome: nome } });
+        ocupar(false);
+        if (r.error) { msg(traduzir(r.error), 'erro'); return; }
+        perfil.nome = nome;
+        if (sessao && sessao.user) {
+          sessao.user.user_metadata = Object.assign({}, sessao.user.user_metadata || {}, { nome: nome });
+        }
+        var p = await sb.from('perfis').select('id,nome,email,status,admin').eq('id', sessao.user.id).maybeSingle();
+        if (!p.error && p.data) perfil = p.data;
+        if ($('conta-nome')) $('conta-nome').textContent = perfil.nome || nome;
+        if ($('conta-inicial')) $('conta-inicial').textContent = (perfil.nome || nome).charAt(0).toUpperCase();
+        msg('Nome do perfil atualizado.', 'sucesso');
+      }
+
+      async function enviarLinkSenha() {
+        if (!sessao || !sessao.user || !sessao.user.email) return msg('Não encontrei o e-mail desta conta.', 'erro');
+        ocupar(true);
+        var destino = window.location.origin + window.location.pathname;
+        var r = await sb.auth.resetPasswordForEmail(sessao.user.email, { redirectTo: destino });
+        ocupar(false);
+        if (r.error) { msg(traduzir(r.error), 'erro'); return; }
+        msg('Enviamos um link para alterar sua senha. Verifique a caixa de entrada e o spam.', 'sucesso');
+      }
+
+      function abrirPerfil() {
+        if (!liberado() || !perfil) return;
+        abrirAuth('perfil');
+      }
+
+      function contarNotasDiferentes(antes, depois) {
+        var mapaA = new Map((antes && antes.alunos || []).map(function (a) { return [a.id, a]; }));
+        var mapaB = new Map((depois && depois.alunos || []).map(function (a) { return [a.id, a]; }));
+        var ids = new Set(Array.from(mapaA.keys()).concat(Array.from(mapaB.keys())));
+        var total = 0;
+        ids.forEach(function (id) {
+          var a = mapaA.get(id), b = mapaB.get(id);
+          var ba = a && a.boletim || {}, bb = b && b.boletim || {};
+          var materias = new Set(Object.keys(ba).concat(Object.keys(bb)));
+          materias.forEach(function (mat) {
+            var na = Array.isArray(ba[mat]) ? ba[mat] : [null, null, null, null];
+            var nb = Array.isArray(bb[mat]) ? bb[mat] : [null, null, null, null];
+            for (var i = 0; i < 4; i++) if (na[i] !== nb[i]) total++;
+          });
+        });
+        return total;
+      }
+
+      async function verHistorico() {
+        if (!liberado()) return;
+        ligarCliques();
+        abrirModal({ titulo: 'Histórico de alterações', okLabel: 'Fechar', tipo: 'auth', visual: 'login', escondeCancelar: true,
+          aoEnviar: function () { fecharModal(); },
+          corpo: cabecalho('Últimas versões dos dados salvos na sua conta') +
+            '<div class="auth-campos"><div id="historico-lista" class="historico-lista"><p class="auth-msg">Carregando histórico…</p></div></div>'
+        });
+        var box = $('historico-lista');
+        var r = await sb.from('historico_boletim').select('id,operacao,ocorrido_em,ator_id').eq('user_id', uidCarregado).order('ocorrido_em', { ascending: false }).limit(30);
+        if (!box) return;
+        if (r.error) { box.innerHTML = '<p class="auth-msg erro">Não foi possível carregar o histórico.</p>'; return; }
+        if (!r.data || !r.data.length) { box.innerHTML = '<p class="auth-msg">Ainda não há alterações registradas. As próximas gravações serão guardadas aqui.</p>'; return; }
+        var rotulos = { INSERT: 'Primeiro salvamento', UPDATE: 'Boletim atualizado', DELETE: 'Registro removido' };
+        box.innerHTML = r.data.map(function (h) {
+          var quando = new Date(h.ocorrido_em).toLocaleString('pt-BR');
+          var autor = h.ator_id && sessao && sessao.user && h.ator_id === sessao.user.id ? 'Alteração feita nesta conta' : 'Registro automático';
+          return '<div class="historico-item"><div class="historico-item-info"><strong>' + esc(rotulos[h.operacao] || 'Alteração') + '</strong><small>' + esc(quando) + '</small><small>' + esc(autor) + '</small></div>' +
+            '<button class="btn btn-small" type="button" data-acao="restaurar-historico" data-id="' + esc(h.id) + '"><i data-lucide="rotate-ccw"></i> Restaurar versão</button></div>';
+        }).join('');
+        atualizarIcones();
+      }
+
+      async function restaurarHistorico(id) {
+        if (!liberado() || !id) return;
+        var r = await sb.from('historico_boletim').select('dados_anteriores,dados_novos').eq('id', id).eq('user_id', uidCarregado).maybeSingle();
+        if (r.error || !r.data) { mostrarToast('Não consegui localizar essa versão.', 'erro'); return; }
+        var snapshot = r.data.dados_anteriores || r.data.dados_novos;
+        if (!snapshot || !Array.isArray(snapshot.materias)) { mostrarToast('Esta versão não contém dados recuperáveis.', 'erro'); return; }
+        var ok = await confirmarP({ titulo: 'Restaurar versão', mensagem: 'Os dados atuais serão substituídos pela versão escolhida. Uma nova entrada será criada no histórico. Deseja continuar?', okLabel: 'Restaurar' });
+        if (!ok) return;
+        appData = Object.assign(clonar(DEFAULT_STATE), clonar(snapshot));
+        sanearDados();
+        renderTudo();
+        await salvarNuvem();
+        if (!sujo) mostrarToast('Versão restaurada e sincronizada com a conta.');
+        else mostrarToast('A versão foi aplicada, mas a sincronização ainda precisa ser concluída.', 'erro');
+        fecharModal();
+      }
+
       function enviar() {
         if (ocupado) return;
         if (view === 'criar') return criarSubmit();
         if (view === 'esqueci') return recuperarSubmit();
         if (view === 'redefinir') return redefinirSubmit();
+        if (view === 'perfil') return salvarPerfil();
+        if (view === 'mfa-obrigatorio') return iniciarMFA();
+        if (view === 'mfa-enroll') return confirmarMFAEnroll();
+        if (view === 'mfa-desafio') return confirmarMFADesafio();
+        if (view === 'mfa-erro') return sincronizar();
         if (view === 'senhaAtualizada' || view === 'confirmar') return pintar('entrar');
         if (view === 'pendente' || view === 'recusado') return verificarSubmit();
         if (view === 'indisponivel') { location.reload(); return; }
@@ -5511,6 +5754,7 @@
         if (estado === 'liberado') { fecharModal(); abrirSecao(); }
         else if (estado === 'pendente') pintar('pendente');
         else if (estado === 'recusado') pintar('recusado');
+        else if (estado === 'mfa') return; // a tela de segundo fator já está aberta
         else msg('Não consegui verificar sua conta agora. Tente de novo.', 'erro');
       }
 
@@ -5548,7 +5792,7 @@
 
       async function redefinirSubmit() {
         var s1 = $('auth-senha').value, s2 = $('auth-senha2').value;
-        if (s1.length < 8) return erroCampo('A senha precisa ter pelo menos 8 caracteres.', 'auth-senha');
+        if (s1.length < 12) return erroCampo('A senha precisa ter pelo menos 12 caracteres.', 'auth-senha');
         if (s1 !== s2) return erroCampo('As senhas não são iguais.', 'auth-senha2');
         ocupar(true);
         var r = await sb.auth.updateUser({ password: s1 });
@@ -5565,7 +5809,7 @@
         var s1 = $('auth-senha').value, s2 = $('auth-senha2').value;
         if (nome.length < 3) return erroCampo('Digite seu nome completo.', 'auth-nome');
         if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return erroCampo('Digite um e-mail válido.', 'modal-input');
-        if (s1.length < 8) return erroCampo('A senha precisa ter pelo menos 8 caracteres.', 'auth-senha');
+        if (s1.length < 12) return erroCampo('A senha precisa ter pelo menos 12 caracteres.', 'auth-senha');
         if (s1 !== s2) return erroCampo('As senhas não são iguais.', 'auth-senha2');
         try { localStorage.setItem(CHAVE_MANTER, '0'); } catch (e) { /* ignora */ }
         ocupar(true);
@@ -5717,7 +5961,7 @@
         if (document.hidden && liberado() && sujo) salvarNuvem();
       });
 
-      window.Nuvem = { liberado: liberado, agendar: agendar, abrirAuth: abrirAuth, abrirAprovacoes: abrirAprovacoes, sair: sair };
+      window.Nuvem = { liberado: liberado, agendar: agendar, abrirAuth: abrirAuth, abrirAprovacoes: abrirAprovacoes, abrirPerfil: abrirPerfil, verHistorico: verHistorico, sair: sair };
 
       if (document.readyState === 'complete') iniciar();
       else window.addEventListener('load', iniciar);
