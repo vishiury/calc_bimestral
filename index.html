@@ -5530,8 +5530,14 @@
       }
 
       async function recuperarSubmit() {
-        var email = $('modal-input').value.trim().toLowerCase();
-        if (!/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email)) return erroCampo('Digite um e-mail válido.', 'modal-input');
+        // Remove espaços externos e caracteres invisíveis que podem vir ao copiar o e-mail.
+        var campoEmail = $('modal-input');
+        var email = (campoEmail.value || '').normalize('NFKC')
+          .replace(/[\u200B-\u200D\uFEFF]/g, '')
+          .trim().toLowerCase();
+        campoEmail.value = email;
+        var formatoEmailValido = /^[a-z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i.test(email);
+        if (!formatoEmailValido) return erroCampo('Digite um e-mail válido.', 'modal-input');
         ocupar(true);
         var destino = window.location.origin + window.location.pathname;
         var r = await sb.auth.resetPasswordForEmail(email, { redirectTo: destino });
